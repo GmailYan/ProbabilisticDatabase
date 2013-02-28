@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 
@@ -12,5 +13,7 @@ namespace ProbabilisticDatabase
         ///submitting it to analyticEngine for refining and execution, the excution results is the return value.
         ///</summary>
         string submitSQL(string sql);
+
+        DataTable viewTable(string tableName);
     }
 }

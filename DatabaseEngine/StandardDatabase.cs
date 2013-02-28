@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Data;
 
 namespace ProbabilisticDatabase.Src.DatabaseEngine
 {
@@ -40,29 +41,9 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
         {
 
             string sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = '" + table + "'";
-            
-            try
-            {
-                myConnection.Open();
-                int NoOfSelected = 0;
 
-                using (SqlCommand command = new SqlCommand(
-                sql, myConnection))
-                {
-                    NoOfSelected = command.ExecuteNonQuery();
-                }
-                return NoOfSelected>0;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-            finally
-            {
-                myConnection.Close();
-            }
-
-            return false;
+            DataTable result = executeSQLWithResult(sql);
+            return result.Rows.Count > 0;
 
         }
 
@@ -91,7 +72,7 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             // format for insert query : INSERT INTO table_name VALUES (value1, value2, value3,...)
 
             string sqlString = "INSERT INTO " + attributeTableName + 
-                              " VALUES (" + randomVariable + "," + value + "," + attribute + "," + prob + ")";
+                              " VALUES (" + randomVariable + "," + value + ",'" + attribute + "'," + prob + ")";
             executeSQL(sqlString);
 
             Trace.WriteLine("SQL executed : "+ sqlString);
@@ -127,5 +108,63 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             return "SQL executed successfully";
         }
 
+        public DataTable executeSQLWithResult(string query)
+        {
+            try
+            {
+                // Open the connection
+                myConnection.Open();
+
+                // Create a SqlCommand object and pass the constructor the connection string and the query string.
+                SqlCommand queryCommand = new SqlCommand(query, myConnection);
+
+                // Use the above SqlCommand object to create a SqlDataReader object.
+                SqlDataReader queryCommandReader = queryCommand.ExecuteReader();
+
+                // Create a DataTable object to hold all the data returned by the query.
+                DataTable dataTable = new DataTable();
+
+                // Use the DataTable.Load(SqlDataReader) function to put the results of the query into a DataTable.
+                dataTable.Load(queryCommandReader);
+
+                return dataTable;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            finally
+            {
+                myConnection.Close();
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// return value of 0 means error occured
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <returns></returns>
+        public int getNextFreeVariableID(string tableName)
+        {
+            string primeTableName = tableName + "_0";
+            string query = "select top 1 var+1 as newID from "+primeTableName
+                + " where var + 1 not in (select var from " + primeTableName + ") order by var";
+            DataTable result = executeSQLWithResult(query);
+
+            if (result == null || result.Rows.Count < 1)
+            {
+                return 0;
+            }else{
+                Object newId = result.Rows[0]["newID"];
+                if (newId is int)
+                {
+                    return (int)newId;
+                }
+                return 0;
+            }
+
+        }
     }
 }
