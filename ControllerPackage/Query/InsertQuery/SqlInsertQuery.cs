@@ -1,10 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 
-namespace ProbabilisticDatabase.Src.ControllerPackage.Query
+namespace ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery
 {
     public class SqlInsertQuery
     {
@@ -93,7 +91,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
         private void processValueClause(string valueClause)
         {
             // pattern here is value or PROBABLY value 50% and repeat for any length 
-            string sPattern = @"[(,](PROBABLY(?<pValue>[\w%\s/]+)|(?<value>\w+))";
+            string sPattern = @"[(,]\s*(PROBABLY(?<pValue>[\w%\s/]+)|(?<value>\w+))";
             MatchCollection matchs = Regex.Matches(valueClause, sPattern, RegexOptions.IgnoreCase);
            
             if(matchs.Count == 0)

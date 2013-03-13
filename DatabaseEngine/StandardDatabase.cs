@@ -12,24 +12,30 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
 {
     public class StandardDatabase : IStandardDatabase
     {
-        public SqlConnection myConnection;
+        private readonly SqlConnection _myConnection;
 
         public StandardDatabase()
         {
             // trace is just alternative to log4net, for logging purpose
             Trace.Listeners.Add(new TextWriterTraceListener(Console.Out));
 
-            myConnection = new SqlConnection("user id=PDuser;" +
+            
+
+            string connectionString2 = "user id=PDuser;" +
                                                    "password=1234888;server=localhost;" +
                                                    "Trusted_Connection=yes;" +
                                                    "database=ProbabilisticDatabase; " +
-                                                   "connection timeout=30");
+                                                   "connection timeout=30";
+
+            //string connectionString = "Data Source=192.168.1.205,1433;Network Library=DBMSSOCN;Initial Catalog=ProbabilisticDatabase;User ID=PDuser;Password=1234888;";
+            const string connectionString = "Data Source=86.1.79.91,1433;Network Library=DBMSSOCN;Initial Catalog=ProbabilisticDatabase;User ID=PDuser;Password=1234888;";
+            _myConnection = new SqlConnection(connectionString2);
             try
             {
-                myConnection.Open();
-                myConnection.Close();
+                _myConnection.Open();
+                _myConnection.Close();
             }
-            catch (System.Data.SqlClient.SqlException ex)
+            catch (SqlException ex)
             {
                 Console.WriteLine(ex.Message);
                 throw new Exception("can not connect to database ");
@@ -37,17 +43,17 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
         }
 
 
-        public bool checkIsTableAlreadyExist(string table)
+        public bool CheckIsTableAlreadyExist(string table)
         {
 
             string sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = '" + table + "'";
 
-            DataTable result = executeSQLWithResult(sql);
+            DataTable result = ExecuteSqlWithResult(sql);
             return result.Rows.Count > 0;
 
         }
 
-        public void createNewTable(string table, string[] attributeNames, string[] attributeTypes)
+        public void CreateNewTable(string table, string[] attributeNames, string[] attributeTypes)
         {
             // example create sql: CREATE TABLE Dogs1 (Weight INT, Name TEXT, Breed TEXT)
             string attributeClause = "";
@@ -62,18 +68,18 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             }
 
             string sqlString = "CREATE TABLE " + table + " (" + attributeClause + ")";
-            executeSQL(sqlString);
+            ExecuteSql(sqlString);
 
             Trace.WriteLine(sqlString);
         }
 
-        public void insertValueIntoAttributeTable(string attributeTableName, int randomVariable, int value, string attribute, double prob)
+        public void InsertValueIntoAttributeTable(string attributeTableName, int randomVariable, int value, string attribute, double prob)
         {
             // format for insert query : INSERT INTO table_name VALUES (value1, value2, value3,...)
 
             string sqlString = "INSERT INTO " + attributeTableName + 
                               " VALUES (" + randomVariable + "," + value + ",'" + attribute + "'," + prob + ")";
-            executeSQL(sqlString);
+            ExecuteSql(sqlString);
 
             Trace.WriteLine("SQL executed : "+ sqlString);
         }
@@ -83,14 +89,14 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
         /// </summary>
         /// <param name="sql"></param>
         /// <returns></returns>
-        private string executeSQL(string sql)
+        public string ExecuteSql(string sql)
         {
             try
             {
-                myConnection.Open();
+                _myConnection.Open();
                
                 using (SqlCommand command = new SqlCommand(
-                sql, myConnection))
+                sql, _myConnection))
                 {
                     command.ExecuteNonQuery();
                 }
@@ -103,20 +109,53 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             }
             finally
             {
-                myConnection.Close();
+                _myConnection.Close();
             }
             return "SQL executed successfully";
         }
 
-        public DataTable executeSQLWithResult(string query)
+        public void WriteTableBacktoDatabase(string tableName, DataTable result)
+        {
+
+            try
+            {
+                _myConnection.Open();
+                var adapter = new SqlDataAdapter("SELECT * FROM " + tableName, _myConnection);
+                using (new SqlCommandBuilder(adapter))
+                {
+                    //
+                    // Fill the DataAdapter with the values in the DataTable.
+                    //
+                    adapter.Fill(result);
+                    //
+                    // Insert the data table into the SQL database.
+                    //
+                    adapter.Update(result);
+                }
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            finally
+            {
+                _myConnection.Close();
+            }
+
+
+            
+        }
+
+        public DataTable ExecuteSqlWithResult(string query)
         {
             try
             {
                 // Open the connection
-                myConnection.Open();
+                _myConnection.Open();
 
                 // Create a SqlCommand object and pass the constructor the connection string and the query string.
-                SqlCommand queryCommand = new SqlCommand(query, myConnection);
+                SqlCommand queryCommand = new SqlCommand(query, _myConnection);
 
                 // Use the above SqlCommand object to create a SqlDataReader object.
                 SqlDataReader queryCommandReader = queryCommand.ExecuteReader();
@@ -135,10 +174,26 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             }
             finally
             {
-                myConnection.Close();
+                _myConnection.Close();
             }
 
             return null;
+        }
+
+        public int GetNumberOfPossibleWorlds(string tableName)
+        {
+            if (CheckIsTableAlreadyExist(tableName+"_PossibleWorlds"))
+            {
+                string sql = string.Format("select top 1 WorldNo from {0}_PossibleWorlds ordered by WorldNo desc", tableName);
+                var result = ExecuteSqlWithResult(sql);
+                var top = result.Rows[0]["WorldNo"];
+                if (!(top is int))
+                {
+                    return 0;
+                }
+                return (int) top;
+            }
+            return 0;
         }
 
         /// <summary>
@@ -146,12 +201,12 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
         /// </summary>
         /// <param name="tableName"></param>
         /// <returns></returns>
-        public int getNextFreeVariableID(string tableName)
+        public int GetNextFreeVariableId(string tableName)
         {
             string primeTableName = tableName + "_0";
             string query = "select top 1 var+1 as newID from "+primeTableName
                 + " where var + 1 not in (select var from " + primeTableName + ") order by var";
-            DataTable result = executeSQLWithResult(query);
+            DataTable result = ExecuteSqlWithResult(query);
 
             if (result == null || result.Rows.Count < 1)
             {

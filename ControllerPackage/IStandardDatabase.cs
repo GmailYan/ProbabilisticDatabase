@@ -8,14 +8,19 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
 {
     interface IStandardDatabase
     {
-        bool checkIsTableAlreadyExist(string table);
+        bool CheckIsTableAlreadyExist(string table);
 
-        void createNewTable(string table, string[] attributeNames, string[] attributeTypes);
+        void CreateNewTable(string table, string[] attributeNames, string[] attributeTypes);
 
-        void insertValueIntoAttributeTable(string attributeTableName, int randomVariable, int p1, string p2, double p3);
+        void InsertValueIntoAttributeTable(string attributeTableName, int randomVariable, int p1, string p2, double p3);
 
-        int getNextFreeVariableID(string tableName);
+        int GetNextFreeVariableId(string tableName);
 
-        DataTable executeSQLWithResult(string sql);
+        DataTable ExecuteSqlWithResult(string sql);
+
+        int GetNumberOfPossibleWorlds(string tableName);
+
+        string ExecuteSql(string sql);
+        void WriteTableBacktoDatabase(string tableName, DataTable result);
     }
 }
