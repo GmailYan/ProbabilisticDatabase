@@ -22,5 +22,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
 
         string ExecuteSql(string sql);
         void WriteTableBacktoDatabase(string tableName, DataTable result);
+
+        void WriteAnswerBacktoDatabase(string tableName, int i, DataTable resultPerWorld);
     }
 }

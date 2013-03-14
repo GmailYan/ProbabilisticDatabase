@@ -69,12 +69,12 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
             // pattern here is: tableName or 2 table join or a sql select query all over again
             string sPattern = @"(?<tableName>\w+)";
             Match match = Regex.Match(tableClause, sPattern, RegexOptions.IgnoreCase);
-
+            tableName = "";
             if(match.Success)
             {
                 tableName = match.Groups["tableName"].Value;
             }
-            tableName = "";
+            
             subQuery = null;
         }
 

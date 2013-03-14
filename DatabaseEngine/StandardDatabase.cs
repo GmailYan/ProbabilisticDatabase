@@ -147,6 +147,12 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             
         }
 
+        public void WriteAnswerBacktoDatabase(string tableName, int worldNo, DataTable partialResultTable)
+        {
+            //todo: delete this if not used
+            partialResultTable.Columns.Add("worldNo");
+        }
+
         public DataTable ExecuteSqlWithResult(string query)
         {
             try
@@ -184,7 +190,7 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
         {
             if (CheckIsTableAlreadyExist(tableName+"_PossibleWorlds"))
             {
-                string sql = string.Format("select top 1 WorldNo from {0}_PossibleWorlds ordered by WorldNo desc", tableName);
+                string sql = string.Format("select top 1 WorldNo from {0}_PossibleWorlds order by WorldNo desc", tableName);
                 var result = ExecuteSqlWithResult(sql);
                 var top = result.Rows[0]["WorldNo"];
                 if (!(top is int))

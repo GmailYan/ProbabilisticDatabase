@@ -35,7 +35,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                 case QueryType.SELECT:
                      var squery = new SqlSelectQuery(sql);
                      squery.processAndPopulateEachField();
-                     HandleSelectSQLQuery(squery);
+                     HandleSelectSqlQuery(squery);
                      break;
                 default:
                      break;
@@ -44,29 +44,58 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
             return "end of submitSQL function";
         }
 
+        public string submitSQLWithResult(string sql, out DataTable answerSet)
+        {
+
+            SqlQuery rawQuery = new SqlQuery(sql);
+            QueryType qType = rawQuery.processType();
+            answerSet = null;
+            switch (qType)
+            {
+                case QueryType.INSERT:
+                    var query = new SqlInsertQuery(sql);
+                    query.processAndPopulateEachField();
+                    HandleInsertSqlQuery(query);
+                    break;
+                case QueryType.SELECT:
+                    var squery = new SqlSelectQuery(sql);
+                    squery.processAndPopulateEachField();
+                    answerSet = HandleSelectSqlQuery(squery);
+                    break;
+                default:
+                    break;
+            }
+
+            return "end of submitSQL function";
+        }
 
         /// <summary>
         /// for simple 1 table select, do the original sql query over all possible worlds of
         /// this table in PD, and return results in the descending order of probability
         /// </summary>
         /// <param name="query"></param>
-        private void HandleSelectSQLQuery(SqlSelectQuery query)
+        private DataTable HandleSelectSqlQuery(SqlSelectQuery query)
         {
             //todo: handle join and subquery case
             int noOfWorld = underlineDatabase.GetNumberOfPossibleWorlds(query.TableName);
+            var answerTableName = string.Format("{0}_Answer", query.TableName);
             
             for (int i = 1; i <= noOfWorld; i++)
             {
-                var sql = string.Format("SELECT {0} FROM {1}",query.Attributes,query.TableName);
+                var sql = string.Format("SELECT {0} FROM {1}",query.Attributes+",worldNo,p",query.TableName+"_PossibleWorlds");
+                sql += " WHERE worldNo="+i;
                 if (query.ConditionClause != "")
                 {
-                    sql += " WHERE " + query.ConditionClause;
+                    sql += " && " + query.ConditionClause;
                 }
 
                 var resultPerWorld = underlineDatabase.ExecuteSqlWithResult(sql);
+                //todo: this table not created yet
+                underlineDatabase.WriteTableBacktoDatabase(answerTableName, resultPerWorld);
 
             }
-        
+            DataTable result = underlineDatabase.ExecuteSqlWithResult("select * from "+answerTableName+" order by p desc");
+            return result;
         }
 
         /// <summary>
@@ -194,9 +223,9 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                 where i.Field<int>("worldNo")==n
                 select i;
 
-                foreach (var dataRow in toBeReplicated)
+                foreach (var oneWorld in toBeReplicated)
                 {
-                    insertVariableState(newWorldNo, dataRow, ref resultTable);
+                    InsertVariableWorld(newWorldNo, oneWorld, ref resultTable);
                 }
                 
             }
@@ -204,15 +233,20 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
             return result;
         }
 
+        private void InsertVariableWorld(int newWorldNo, DataRow oneWorld, ref DataTable resultTable)
+        {
+            insertVariableState(newWorldNo,oneWorld,ref resultTable,2);
+        }
+
         // insert a row of possibleStates table into possibleWorlds table
-        private void insertVariableState(int worldNo, DataRow dataRow,ref DataTable result)
+        private void insertVariableState(int worldNo, DataRow dataRow,ref DataTable result,int offset=3)
         {
             var newRow = result.NewRow();
             try
             {
                 newRow.SetField("worldNo", worldNo);
                 var numberOfColumn = dataRow.ItemArray.Count();
-                for (int i = 0; i < numberOfColumn-2; i++)
+                for (int i = 0; i < numberOfColumn - offset; i++)
                 {
                     newRow.SetField("att" + i, dataRow.Field<string>("att" + i));
                 }
