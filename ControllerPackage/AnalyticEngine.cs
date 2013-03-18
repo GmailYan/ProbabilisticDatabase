@@ -82,19 +82,28 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
             
             for (int i = 1; i <= noOfWorld; i++)
             {
-                var sql = string.Format("SELECT {0} FROM {1}",query.Attributes+",worldNo,p",query.TableName+"_PossibleWorlds");
+                var sql = string.Format("SELECT {0} FROM {1}",
+                    query.Attributes + ",worldNo,p", query.TableName + "_PossibleWorlds");
                 sql += " WHERE worldNo="+i;
                 if (query.ConditionClause != "")
                 {
-                    sql += " && " + query.ConditionClause;
+                    sql += " AND " + query.ConditionClause;
                 }
-
-                var resultPerWorld = underlineDatabase.ExecuteSqlWithResult(sql);
-                //todo: this table not created yet
-                underlineDatabase.WriteTableBacktoDatabase(answerTableName, resultPerWorld);
-
-            }
-            DataTable result = underlineDatabase.ExecuteSqlWithResult("select * from "+answerTableName+" order by p desc");
+                
+                if (i==1)
+                {
+                    // first run has to create the table, subsequent run is just insert
+                    string createTableSql = string.Format("SELECT * INTO {0} FROM ({1}) as t1",answerTableName,sql);
+                    underlineDatabase.ExecuteSql(createTableSql);
+                }
+                else
+                {
+                    string insertSql = string.Format("INSERT INTO {0} {1}", answerTableName, sql);
+                    underlineDatabase.ExecuteSql(insertSql);
+                }
+             }
+            var selectSql = string.Format("SELECT {0},dbo.IndependentProject(p) as p FROM {1} GROUP BY {0} ORDER BY p DESC",query.Attributes,answerTableName);
+            DataTable result = underlineDatabase.ExecuteSqlWithResult(selectSql);
             return result;
         }
 

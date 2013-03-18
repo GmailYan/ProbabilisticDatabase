@@ -14,6 +14,7 @@ namespace ProbabilisticDatabase
         ///</summary>
         string submitSQL(string sql);
 
+        string submitSQLWithResult(string sql, out DataTable answerSet);
         DataTable viewTable(string tableName);
     }
 }

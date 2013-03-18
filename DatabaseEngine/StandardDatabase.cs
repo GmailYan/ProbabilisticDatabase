@@ -147,12 +147,6 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             
         }
 
-        public void WriteAnswerBacktoDatabase(string tableName, int worldNo, DataTable partialResultTable)
-        {
-            //todo: delete this if not used
-            partialResultTable.Columns.Add("worldNo");
-        }
-
         public DataTable ExecuteSqlWithResult(string query)
         {
             try
@@ -226,6 +220,15 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
                 return 0;
             }
 
+        }
+
+        public void DropTableIfExist(string tableName)
+        {
+            if (CheckIsTableAlreadyExist(tableName))
+            {
+                ExecuteSql("DROP TABLE " + tableName);    
+            }
+            
         }
     }
 }
