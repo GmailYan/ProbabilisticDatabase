@@ -91,9 +91,8 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery
         private void processValueClause(string valueClause)
         {
             // pattern here is value or PROBABLY value 50% and repeat for any length 
-            string sPattern = @"[(,]\s*(PROBABLY(?<pValue>[\w%\s/]+)|(?<value>\w+))";
+            string sPattern = @"[(,]\s*(PROBABLY(?<pValue>[\w%\.\s/]+)|(?<value>[\w\.]+))";
             MatchCollection matchs = Regex.Matches(valueClause, sPattern, RegexOptions.IgnoreCase);
-           
             if(matchs.Count == 0)
             {
                 throw new Exception("regex matching fail to return any results");
