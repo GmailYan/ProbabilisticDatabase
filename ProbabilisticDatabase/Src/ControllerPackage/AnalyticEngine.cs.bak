@@ -1,0 +1,305 @@
+﻿using System.Data;
+using ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery;
+using ProbabilisticDatabase.Src.DatabaseEngine;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using ProbabilisticDatabase.Src.ControllerPackage;
+using ProbabilisticDatabase.Src.ControllerPackage.Query;
+using ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery;
+
+namespace ProbabilisticDatabase
+{
+    class AnalyticEngine : IAnalyticEngine
+    {
+        private IStandardDatabase underlineDatabase = new StandardDatabase();
+
+        /// <summary>
+        /// due to the probabilistic nature, we assume all data are of string type,
+        /// thus Create table is not required, and engine will handle table creation upon
+        /// receive the first insert SQL query
+        /// </summary>
+        public string submitSQL(string sql)
+        {
+
+            SqlQuery rawQuery = new SqlQuery(sql);
+            QueryType qType = rawQuery.processType();
+
+            switch (qType){
+                case QueryType.INSERT:
+                     var query = new SqlInsertQuery(sql);
+                     query.processAndPopulateEachField();
+                     HandleInsertSqlQuery(query);
+                     break;
+                case QueryType.SELECT:
+                     var squery = new SqlSelectQuery(sql);
+                     squery.processAndPopulateEachField();
+                     HandleSelectSQLQuery(squery);
+                     break;
+                default:
+                     break;
+            }
+
+            return "end of submitSQL function";
+        }
+
+
+        /// <summary>
+        /// for simple 1 table select, do the original sql query over all possible worlds of
+        /// this table in PD, and return results in the descending order of probability
+        /// </summary>
+        /// <param name="query"></param>
+        private void HandleSelectSQLQuery(SqlSelectQuery query)
+        {
+            //todo: handle join and subquery case
+            int noOfWorld = underlineDatabase.GetNumberOfPossibleWorlds(query.TableName);
+            
+            for (int i = 1; i <= noOfWorld; i++)
+            {
+                var sql = string.Format("SELECT {0} FROM {1}",query.Attributes,query.TableName);
+                if (query.ConditionClause != "")
+                {
+                    sql += " WHERE " + query.ConditionClause;
+                }
+
+                var resultPerWorld = underlineDatabase.ExecuteSqlWithResult(sql);
+
+            }
+        
+        }
+
+        /// <summary>
+        /// its operation is described by google doc chapter 1 storage, 
+        /// if table already exist then ignore the create table operation
+        /// just do the insert value
+        /// </summary>
+        /// <param name="query"></param>
+        private void HandleInsertSqlQuery(SqlInsertQuery query)
+        {
+            // only check prime field table here, is it safe enough ? 
+            bool isTableExist = underlineDatabase.CheckIsTableAlreadyExist(query.TableName+"_0");
+            List<Object> attributes = query.Attributes;
+
+            int randomVariable = 1;
+
+            if (!isTableExist)
+            {
+                // table creation operation here
+
+                createAttributeTables(query, attributes);
+                //createPossibleStatesTable(query, attributes);
+                //createPossibleWorldsTable(query, attributes);
+            }
+            else
+            {
+                randomVariable = underlineDatabase.GetNextFreeVariableId(query.TableName);
+                if (randomVariable <= 0)
+                {
+                    // getNextFreeVariableID method fail in some way
+                    return;
+                }
+            }
+
+            // insert value into tables starting here
+            InsertAttributeValue(query, attributes, randomVariable);
+            PopulatePossibleStatesTableAndWorlds(query);
+
+        }
+
+        private void PopulatePossibleWorlds(SqlInsertQuery query,int randomVariable)
+        {
+            var tableName = query.TableName;
+
+            var statesTable =  underlineDatabase.ExecuteSqlWithResult("select * from socialData_PossibleStates");
+
+            IEnumerable<DataRow> newlyAddedPossibleStates = from dataRow in statesTable.AsEnumerable()
+                                     where dataRow.Field<int>("var") == randomVariable
+                                     select dataRow;
+
+            var numberOfState = newlyAddedPossibleStates.Count();
+
+            var worldsTable = underlineDatabase.ExecuteSqlWithResult("select * from socialData_PossibleWorlds");
+
+            // replicate existingWorldTable, number of copy depends on number of state in new variable.
+            var worldNumbers = from dataRow in worldsTable.AsEnumerable()
+                               select dataRow.Field<int>("worldNo");
+
+            var dataRow = worldsTable.NewRow();
+            dataRow.SetField("worldNo",1);
+            worldsTable.Rows.Add(dataRow);
+
+        }
+
+
+        /// <summary>
+        /// execute sql to populate the 2 aux table
+        /// </summary>
+        /// <param name="query"></param>
+        private void PopulatePossibleStatesTableAndWorlds(SqlInsertQuery query)
+        {
+            var attributes = query.Attributes;
+            var numberOfAttributes = attributes.Count;
+            var tableName = query.TableName;
+
+            /* sql format is: 
+            INSERT INTO socialData_PossibleStates (var,v,att0,att1...,p)
+            SELECT var,v,att0,att1...,p
+            FROM socialData_0 as t0 cross join socialData_1 .....
+            WHERE t0.var = t1.var and t0.var = t2.var .....
+            */
+
+            string attributeClause = "var,v";
+            string fromClause = "";
+            string whereClause = "";
+            for (int i = 0; i < numberOfAttributes; i++)
+            {
+                attributeClause += ",att"+i;
+
+                if (i==0)
+                {
+                    fromClause += string.Format(" {0}_0 as t0 ",tableName);
+                }
+                else
+                {
+                    fromClause += string.Format(" cross join {0}_{1} as t{1} ", tableName,i);
+                    if ( i==1)
+                    {
+                        whereClause += string.Format(" t0.var = t{0}.var ", i);
+                    }
+                    else
+                    {
+                        whereClause += string.Format(" and t0.var = t{0}.var ", i);
+                    }
+                   
+                }
+            }
+            attributeClause += ",p";
+
+            //todo: not finished yet
+
+
+            /*
+            var rawTable = new List<DataTable>();
+
+            DataTable possibleStates = underlineDatabase.ExecuteSqlWithResult(
+                string.Format("SELECT * FROM {0}_PossibleStates",tableName));
+            
+            for (int i = 0; i < numberOfAttributes; i++)
+            {
+                var rawTableSelector = string.Format("select * from {0}",tableName);
+                rawTable[i] = underlineDatabase.ExecuteSqlWithResult(rawTableSelector);
+                var result = rawTable[0];
+
+                if ( i>=1 )
+                {
+
+                }
+
+            }
+             */
+
+        }
+
+        private void InsertAttributeValue(SqlInsertQuery query, List<Object> attributes, int randomVariable)
+        {
+            for (int i = 0; i < attributes.Count; i++)
+            {
+                string attributeTableName = query.TableName + "_" + i;
+
+                var value = attributes[i] as AttributeValue;
+                if (value != null)
+                {
+                    AttributeValue attribute = value;
+                    double prob = 0;
+                    prob = i == 0 ? query.TupleP : 100;
+
+                    underlineDatabase.InsertValueIntoAttributeTable(attributeTableName, randomVariable, 1, attribute.AttributeValue1, prob);
+                }
+                else
+                {
+                    var probabilisticAttribute = attributes[i] as ProbabilisticAttribute;
+                    if (probabilisticAttribute != null)
+                    {
+                        var attribute = probabilisticAttribute;
+                        List<String> v = attribute.Values;
+                        List<double> p = attribute.Probs;
+
+                        for (int j = 0; j < v.Count; j++)
+                        {
+                            // attribute value starting from 1 upto number of possible values, 
+                            // because 0 is system reserve for null state.
+                            underlineDatabase.InsertValueIntoAttributeTable(attributeTableName, randomVariable, j + 1, v[j], p[j]);
+                        }
+
+                    }
+                }
+            }
+        }
+
+        private void createPossibleWorldsTable(SqlInsertQuery query, List<object> attributes)
+        {
+            String[] attributeNames = { "var", "v" };
+            String[] attributeTypes = { "INT", "INT" };
+            string attributeTableName = query.TableName + "_PossibleWorld";
+
+            List<String> attributeNamesList = attributeNames.ToList();
+            List<String> attributeTypesList = attributeTypes.ToList();
+
+            for (int i = 0; i < attributes.Count; i++)
+            {
+                string ai = "att" + i;
+                attributeNamesList.Add(ai);
+                attributeTypesList.Add("NVARCHAR(MAX)");
+            }
+
+            // p is the last attribute
+            attributeNamesList.Add("p");
+            attributeTypesList.Add("float");
+
+            underlineDatabase.CreateNewTable(attributeTableName, attributeNames, attributeTypes);
+        }
+
+        private void createPossibleStatesTable(SqlInsertQuery query, List<object> attributes)
+        {
+            String[] attributeNames = { "worldNo" };
+            String[] attributeTypes = { "INT" };
+            string attributeTableName = query.TableName + "_PossibleStates";
+
+            List<String> attributeNamesList = attributeNames.ToList();
+            List<String> attributeTypesList = attributeTypes.ToList();
+
+            for (int i = 0; i < attributes.Count; i++)
+            {
+                string ai = "att" + i;
+                attributeNamesList.Add(ai);
+                attributeTypesList.Add("NVARCHAR(MAX)");
+            }
+
+            // p is the last attribute
+            attributeNamesList.Add("p");
+            attributeTypesList.Add("float");
+
+            underlineDatabase.CreateNewTable(attributeTableName, attributeNames, attributeTypes);
+        }
+
+        private void createAttributeTables(SqlInsertQuery query, List<Object> attributes)
+        {
+            for (int i = 0; i < attributes.Count; i++)
+            {
+                string attributeTableName = query.TableName + "_" + i;
+                string ai = "att" + i;
+                String[] attributeNames = { "var", "v", ai , "p" };
+                String[] attributeTypes = { "INT", "INT", "NVARCHAR(MAX)", "float" };
+                underlineDatabase.CreateNewTable(attributeTableName, attributeNames, attributeTypes);
+            }
+        }
+
+
+        public System.Data.DataTable viewTable(string tableName)
+        {
+            string sql = "Select * From " + tableName;
+            return underlineDatabase.ExecuteSqlWithResult(sql);
+        }
+    }
+}
