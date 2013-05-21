@@ -22,6 +22,6 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
 
         string ExecuteSql(string sql);
         void WriteTableBacktoDatabase(string tableName, DataTable result);
-
+        void DropTableIfExist(string tableName);
     }
 }

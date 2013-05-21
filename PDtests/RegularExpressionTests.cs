@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using ProbabilisticDatabase.Src.ControllerPackage.Query;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery;
 using ProbabilisticDatabase.Src.DatabaseEngine;
+using ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery;
 
 namespace PDtests
 {
@@ -76,6 +77,44 @@ namespace PDtests
             Assert.IsTrue(pa.Probs[1] == 50.0);
         }
 
+        [TestMethod]
+        public void TestParsingSelectQueryWithWhereClause()
+        {
+            string sentences = "Select a,b,c from Data where a=25 and b=15 ";
+
+            SqlSelectQuery query = new SqlSelectQuery(sentences);
+
+            Assert.IsTrue(query.Attributes.Trim() == "a,b,c");
+            Assert.IsTrue(query.TableName.Trim() == "Data");
+            Assert.IsTrue(query.ConditionClause.Trim() == "a=25 and b=15");
+            Assert.IsTrue(query.Strategy.Equals(EvaluationStrategy.Default));
+        }
+
+        [TestMethod]
+        public void TestParsingSelectQueryWithWhereClauseAndStrategy()
+        {
+            string sentences = "Select a,b,c from Data where a=25 and b=15 Evaluate using monte Carlo";
+
+            SqlSelectQuery query = new SqlSelectQuery(sentences);
+
+            Assert.IsTrue(query.Attributes.Trim() == "a,b,c");
+            Assert.IsTrue(query.TableName.Trim() == "Data");
+            Assert.IsTrue(query.ConditionClause.Trim() == "a=25 and b=15");
+            Assert.IsTrue(query.Strategy.Equals(EvaluationStrategy.MonteCarlo));
+        }
+
+        [TestMethod]
+        public void TestParsingSelectQueryWithOnlyStrategy()
+        {
+            string sentences = "Select a,b,c from Data Evaluate using monte Carlo";
+
+            SqlSelectQuery query = new SqlSelectQuery(sentences);
+
+            Assert.IsTrue(query.Attributes.Trim() == "a,b,c");
+            Assert.IsTrue(query.TableName.Trim() == "Data");
+            Assert.IsTrue(query.ConditionClause.Trim() == "");
+            Assert.IsTrue(query.Strategy.Equals(EvaluationStrategy.MonteCarlo));
+        }
     }
 
 

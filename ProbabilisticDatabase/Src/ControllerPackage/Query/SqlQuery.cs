@@ -35,6 +35,8 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
                         return QueryType.INSERT;
                     case "select":
                         return QueryType.SELECT;
+                    case "create":
+                        return QueryType.CREATE;
                     default:
                         return QueryType.INVALID;
                 }

@@ -12,9 +12,9 @@ namespace ProbabilisticDatabase
         ///receive a raw sql query from user through GUI layer
         ///submitting it to analyticEngine for refining and execution, the excution results is the return value.
         ///</summary>
-        string submitSQL(string sql);
+        string submitNonQuerySQL(string sql);
 
-        string submitSQLWithResult(string sql, out DataTable answerSet);
+        string submitQuerySQL(string sql, out DataTable answerSet);
         DataTable viewTable(string tableName);
     }
 }

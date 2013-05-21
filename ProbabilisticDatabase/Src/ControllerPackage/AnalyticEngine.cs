@@ -8,6 +8,7 @@ using System.Text;
 using ProbabilisticDatabase.Src.ControllerPackage;
 using ProbabilisticDatabase.Src.ControllerPackage.Query;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery;
+using ProbabilisticDatabase.Src.ControllerPackage.Query.CreateTableQuery;
 
 namespace ProbabilisticDatabase.Src.ControllerPackage
 {
@@ -16,35 +17,18 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
         private IStandardDatabase underlineDatabase = new StandardDatabase();
 
         /// <summary>
-        /// due to the probabilistic nature, we assume all data are of string type,
+        /// due to the probabilistic nature, we can assume all data are of string type,
         /// thus Create table is not required, and engine will handle table creation upon
         /// receive the first insert SQL query
+        /// However if created table first before insert, user could specify field name and type
         /// </summary>
-        public string submitSQL(string sql)
+        public string submitNonQuerySQL(string sql)
         {
-
-            SqlQuery rawQuery = new SqlQuery(sql);
-            QueryType qType = rawQuery.processType();
-
-            switch (qType){
-                case QueryType.INSERT:
-                     var query = new SqlInsertQuery(sql);
-                     query.processAndPopulateEachField();
-                     HandleInsertSqlQuery(query);
-                     break;
-                case QueryType.SELECT:
-                     var squery = new SqlSelectQuery(sql);
-                     squery.processAndPopulateEachField();
-                     HandleSelectSqlQuery(squery);
-                     break;
-                default:
-                     break;
-            }
-
-            return "end of submitSQL function";
+            DataTable a;
+            return submitQuerySQL(sql, out a);
         }
 
-        public string submitSQLWithResult(string sql, out DataTable answerSet)
+        public string submitQuerySQL(string sql, out DataTable answerSet)
         {
 
             SqlQuery rawQuery = new SqlQuery(sql);
@@ -59,8 +43,11 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                     break;
                 case QueryType.SELECT:
                     var squery = new SqlSelectQuery(sql);
-                    squery.processAndPopulateEachField();
                     answerSet = HandleSelectSqlQuery(squery);
+                    break;
+                case QueryType.CREATE:
+                    var cquery = new SqlCreateTableQuery(sql);
+                    answerSet = HandleCreateSqlQuery(cquery);
                     break;
                 default:
                     break;
@@ -69,8 +56,16 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
             return "end of submitSQL function";
         }
 
+        private DataTable HandleCreateSqlQuery(SqlCreateTableQuery cquery)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
-        /// for simple 1 table select, do the original sql query over all possible worlds of
+        /// procedure are in 2 stages, stage 1 apply raw Where Clause to get data interested
+        /// stage 2, apply evaluation strategy to get the overall result
+        /// 
+        /// PS:for simple 1 table select, do the original sql query over all possible worlds of
         /// this table in PD, and return results in the descending order of probability
         /// </summary>
         /// <param name="query"></param>
@@ -79,11 +74,20 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
             //todo: handle join and subquery case
             int noOfWorld = underlineDatabase.GetNumberOfPossibleWorlds(query.TableName);
             var answerTableName = string.Format("{0}_Answer", query.TableName);
-            
+            underlineDatabase.DropTableIfExist(answerTableName);
+
+            // just in case if all field are selected using * operator already.
+            var attributes = query.Attributes;
+            if (query.Attributes.Contains("*")) {
+                attributes = "*";
+            }else{
+                attributes =  query.Attributes + ",worldNo,p";
+            }
+
             for (int i = 1; i <= noOfWorld; i++)
             {
                 var sql = string.Format("SELECT {0} FROM {1}",
-                    query.Attributes + ",worldNo,p", query.TableName + "_PossibleWorlds");
+                    attributes, query.TableName + "_PossibleWorlds");
                 sql += " WHERE worldNo="+i;
                 if (query.ConditionClause != "")
                 {
@@ -102,9 +106,114 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                     underlineDatabase.ExecuteSql(insertSql);
                 }
              }
-            var selectSql = string.Format("SELECT {0},dbo.IndependentProject(p) as p FROM {1} GROUP BY {0} ORDER BY p DESC",query.Attributes,answerTableName);
-            DataTable result = underlineDatabase.ExecuteSqlWithResult(selectSql);
+
+            DataTable result = computeJointResult(query.Attributes, answerTableName, query.Strategy, query);
+
             return result;
+        }
+
+        /// <summary>
+        /// Default is Exact method, while monte carlo is sampling using frequency of event occur
+        /// </summary>
+        /// <param name="attributes"></param>
+        /// <param name="answerTableName"></param>
+        /// <param name="evaluationStrategy"></param>
+        /// <returns></returns>
+        private DataTable computeJointResult(string attributes, string answerTableName, EvaluationStrategy evaluationStrategy, SqlSelectQuery query)
+        {
+            DataTable result = new DataTable();
+            switch (evaluationStrategy)
+            {
+                case EvaluationStrategy.Default: case EvaluationStrategy.Exact:
+                    var selectSql = string.Format("SELECT {0},dbo.IndependentProject(p) as p FROM {1} GROUP BY {0} ORDER BY p DESC", query.Attributes, answerTableName);
+                    result = underlineDatabase.ExecuteSqlWithResult(selectSql);
+                    return result;
+                case EvaluationStrategy.MonteCarlo:
+                    var samplingResultTable = query.TableName+"_MonteCarloSampling";
+                    var samplingRuns = 100;
+                    
+                    return ExecuteMonteCarloSampling(samplingResultTable, answerTableName, samplingRuns,query);;
+            }
+            return result;
+        }
+
+        private DataTable ExecuteMonteCarloSampling(string samplingResultTable, string samplingTargetTable, int samplingRuns,SqlSelectQuery query)
+        {
+            Random random = new Random();
+            
+            var sql = String.Format("select count(*) from {0}", samplingTargetTable);
+            var result = underlineDatabase.ExecuteSqlWithResult(sql);
+            
+            if(result.Rows.Count != 1)
+                throw new Exception("");
+
+            var noOfWorlds = (int)result.Rows[0][0];
+
+            DataTable allSample = new DataTable();
+            for (int i = 1; i <= samplingRuns; i++ )
+            {
+                var worldNoSelected = random.Next(1, noOfWorlds);
+                var selectStringWorld = string.Format("SELECT * FROM {0} WHERE worldNo = {1}",samplingTargetTable,worldNoSelected);
+                var aSample = underlineDatabase.ExecuteSqlWithResult(selectStringWorld);
+                if(i==1)
+                    allSample = aSample.Clone();
+
+                allSample = addOneTableToAnother(allSample,aSample,random);
+            }
+
+            DataTable frenquencyResult = computeFrequencyResult(allSample, samplingResultTable, query.Attributes, samplingRuns);
+
+            return frenquencyResult;
+        }
+
+        /// <summary>
+        /// save allSample table back to database in order to be able to use group by keyword.
+        /// the temporary table called samplingResultTable is created for this purposes
+        /// </summary>
+        /// <param name="allSample"></param>
+        /// <param name="samplingResultTable"></param>
+        /// <param name="query"></param>
+        /// <returns></returns>
+        private DataTable computeFrequencyResult(DataTable allSample, string samplingResultTable, string selectedFields ,int noOfSamplingRuns)
+        {
+            underlineDatabase.WriteTableBacktoDatabase(samplingResultTable, allSample);
+
+            var groupingSql = string.Format("SELECT {0},(COUNT(*)/{2}) as p FROM {1} GROUP BY {0}",selectedFields,samplingResultTable,noOfSamplingRuns);
+            return underlineDatabase.ExecuteSqlWithResult(groupingSql);
+        }
+
+        private DataTable addOneTableToAnother(DataTable allSample, DataTable aSample, Random random)
+        {
+            foreach (var row in aSample.AsEnumerable())
+            {
+                // rowProbability should be between 0 to 100
+                var rowProbability = row.Field<Double>("p");
+                // even this world is select, there is a chance this row would not realise depends on its tuple probability
+                var randomVariable = random.NextDouble();
+                if ((randomVariable * 100) <= rowProbability)
+                    {
+                        var dr = allSample.NewRow();
+                        foreach (DataColumn column in aSample.Columns)
+                        {
+                            var columnName = column.ColumnName;
+                            switch (columnName)
+                            {
+                                case "worldNo":
+                                    dr.SetField<int>(columnName, row.Field<int>(columnName));
+                                    break;
+                                case "p":
+                                    dr.SetField<double>(columnName, row.Field<double>(columnName));
+                                    break;
+                                default:
+                                    dr.SetField<string>(columnName, row.Field<string>(columnName));
+                                    break;
+                            }
+                            
+                        }
+                        allSample.Rows.Add(dr);
+                    }
+            }
+            return allSample;
         }
 
         /// <summary>
@@ -169,7 +278,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
 
             // replicate existingWorldTable, number of copy depends on number of state in new variable.
             var worldNumbers = (from dataRow in existingWorldsTable.AsEnumerable()
-                               select dataRow.Field<int>("worldNo")).ToList();
+                               select dataRow.Field<int>("worldNo")).Distinct().ToList();
 
             // if old worlds is empty, for each new state create a world
             if (!worldNumbers.Any())

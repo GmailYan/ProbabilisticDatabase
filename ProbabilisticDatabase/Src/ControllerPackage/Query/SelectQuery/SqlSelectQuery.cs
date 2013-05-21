@@ -7,10 +7,12 @@ using System.Threading.Tasks;
 
 namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
 {
-    class SqlSelectQuery
+    public class SqlSelectQuery
     {
         private string sql;
         private string _conditionClause;
+        private string _strategyClause;
+        private EvaluationStrategy _strategy;
         private string _tableName;
         private string _attributes;
         private SqlSelectQuery _subQuery;
@@ -18,6 +20,8 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         public SqlSelectQuery(string sql)
         {
             this.sql = sql;
+            processAndPopulateEachField();
+            parseEvaluationStrategyEnum();
         }
 
         public string TableName
@@ -29,32 +33,79 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         {
             get { return _conditionClause; }
         }
-
+        public EvaluationStrategy Strategy
+        {
+            get { return _strategy; }
+        }
         public string Attributes
         {
             get { return _attributes; }
         }
 
-        internal void processAndPopulateEachField()
+        private void processAndPopulateEachField()
         {
-            // pattern to match here is: select fields from tableORsubQuery where whereCondition 
-            string sPattern = @"\s*SELECT\s+(?<attributes>.+)FROM\s+(?<tableClause>.+?)\s*(\z|WHERE\s+(?<conditionClause>.+))";
+            // pattern to match here is: select fields from tableORsubQuery where whereCondition EVALUATE USING xxx strategy
+            string sPattern = @"\s*SELECT\s+(?<attributes>.+)FROM\s+(?<tableClause>\w+)\s*((?<conditionClause>.+))";
             Match match = Regex.Match(this.sql, sPattern, RegexOptions.IgnoreCase);
 
             if (match.Success)
             {
                 _attributes = match.Groups["attributes"].Value;
                 String tableClause = match.Groups["tableClause"].Value;
-                _conditionClause = match.Groups["conditionClause"].Value;
+                var optionalClause = match.Groups["conditionClause"].Value;
                
-                // TODO: do i really need to parse the attribute names ?
                 List<String> attributesName = processAttributesClause(_attributes);
                 processTableClause(tableClause, out _tableName, out _subQuery);
-
+                if (optionalClause.Length > 0)
+                    processOptionalClause(optionalClause, out _conditionClause, out _strategyClause);
             }
             else
             {
                 throw new Exception("query's format does not comply with INSERT INTO VALUES");
+            }
+        }
+
+        private void parseEvaluationStrategyEnum()
+        {
+            switch (_strategyClause.ToLower()){
+                case "monte carlo":
+                    _strategy = EvaluationStrategy.MonteCarlo;
+                    break;
+                case "":
+                    _strategy = EvaluationStrategy.Default;
+                    break;
+                default:
+                    _strategy = EvaluationStrategy.Default;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Both WHERE clause and EVALUATE USING clause are optional
+        ///
+        /// </summary>
+        /// <param name="optionalClause"></param>
+        /// <param name="_conditionClause"></param>
+        /// <param name="_strategyClause"></param>
+        private void processOptionalClause(string optionalClause, out string _conditionClause, out string _strategyClause)
+        {
+            string sPattern = @"WHERE\s*(?<whereClause>.*?)(?:EVALUATE USING|$)";
+            Match match = Regex.Match(optionalClause, sPattern, RegexOptions.IgnoreCase);
+
+            _conditionClause = "";
+            _strategyClause = "";
+
+            if (match.Success)
+            {
+                _conditionClause = match.Groups["whereClause"].Value;
+            }
+
+            string sPattern2 = @"EVALUATE USING\s*(?<strategyClause>.*?)$";
+            Match match2 = Regex.Match(optionalClause, sPattern2, RegexOptions.IgnoreCase);
+
+            if (match2.Success)
+            {
+                _strategyClause = match2.Groups["strategyClause"].Value;
             }
         }
 

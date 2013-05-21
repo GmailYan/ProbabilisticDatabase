@@ -2,14 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace ProbabilisticDatabase.Src.ControllerPackage.Query
 {
-    public enum QueryType
+    public enum EvaluationStrategy
     {
-        INVALID,
-        INSERT,
-        SELECT,
-        CREATE
+        Default,
+        Exact,
+        Approximate,
+        MonteCarlo
     }
 }
