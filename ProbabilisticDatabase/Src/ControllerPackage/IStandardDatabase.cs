@@ -6,7 +6,7 @@ using System.Text;
 
 namespace ProbabilisticDatabase.Src.ControllerPackage
 {
-    interface IStandardDatabase
+    public interface IStandardDatabase
     {
         bool CheckIsTableAlreadyExist(string table);
 

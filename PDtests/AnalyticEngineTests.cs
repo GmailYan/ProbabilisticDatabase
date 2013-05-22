@@ -102,7 +102,10 @@ namespace PDtests
             SetupFinancialWorld();
 
             DataTable result;
-            analyticEngine.submitQuerySQL("SELECT att0,att1 FROM CompanyStock WHERE att0 = 'Google' EVALUATE USing monte carlo",out result);
+            analyticEngine.submitQuerySQL("SELECT att0,att1 FROM CompanyStock WHERE att0 = 'Google' EVALUATE USing monte carlo", out result);
+
+            // Google has 3 possible stock price
+            Assert.AreEqual(result.Rows.Count, 3);
 
             DropFinancialWorld();
         }

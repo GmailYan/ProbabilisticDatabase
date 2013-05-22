@@ -42,7 +42,7 @@ namespace ProbabilisticDatabase
                     break;
                 case "Submit":
                     DataTable result;
-                    textBox2.Text = DBengine.submitSQLWithResult(textBox2.Text,out result);
+                    textBox2.Text = DBengine.submitQuerySQL(textBox2.Text,out result);
                     setStatusLabel(textBox2.Text);
                     textBox2.Enabled = false;
                     submitSQL.Text = "View Result"; 

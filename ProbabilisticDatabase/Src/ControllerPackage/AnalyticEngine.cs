@@ -161,7 +161,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                 allSample = addOneTableToAnother(allSample,aSample,random);
             }
 
-            DataTable frenquencyResult = computeFrequencyResult(allSample, samplingResultTable, query.Attributes, samplingRuns);
+            DataTable frenquencyResult = computeFrequencyResult(allSample, samplingResultTable, query.Attributes, samplingRuns, query);
 
             return frenquencyResult;
         }
@@ -174,12 +174,43 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
         /// <param name="samplingResultTable"></param>
         /// <param name="query"></param>
         /// <returns></returns>
-        private DataTable computeFrequencyResult(DataTable allSample, string samplingResultTable, string selectedFields ,int noOfSamplingRuns)
+        private DataTable computeFrequencyResult(DataTable allSample, string samplingResultTable, string selectedFields ,int noOfSamplingRuns,SqlSelectQuery query)
         {
-            underlineDatabase.WriteTableBacktoDatabase(samplingResultTable, allSample);
-
+            WriteTableIntoDatabase(samplingResultTable, allSample);
             var groupingSql = string.Format("SELECT {0},(COUNT(*)/{2}) as p FROM {1} GROUP BY {0}",selectedFields,samplingResultTable,noOfSamplingRuns);
             return underlineDatabase.ExecuteSqlWithResult(groupingSql);
+        }
+
+        private void WriteTableIntoDatabase(string samplingResultTable, DataTable allSample)
+        {
+            underlineDatabase.DropTableIfExist(samplingResultTable);
+            
+            var attributes = new List<string>();
+            var attributeTypes = new List<string>();
+
+            foreach(DataColumn col in allSample.Columns)
+            {
+                attributes.Add(col.ColumnName);
+                attributeTypes.Add(mapCLRTypeToSqlType(col.DataType.Name));
+            }
+            underlineDatabase.CreateNewTable(samplingResultTable,attributes.ToArray(),attributeTypes.ToArray());
+            underlineDatabase.WriteTableBacktoDatabase(samplingResultTable, allSample);
+        }
+
+        private string mapCLRTypeToSqlType(string p)
+        {
+            switch (p){
+                case "Int32":
+                    return "int";
+                case "Int64":
+                    return "int";
+                case "String":
+                    return "varchar(255)";
+                case "Double":
+                    return "float";
+                default:
+                    return "varchar(255)";
+            }
         }
 
         private DataTable addOneTableToAnother(DataTable allSample, DataTable aSample, Random random)
