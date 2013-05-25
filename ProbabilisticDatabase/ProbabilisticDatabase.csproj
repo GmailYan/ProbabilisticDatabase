@@ -67,6 +67,7 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Src\ControllerPackage\IStandardDatabase.cs" />
+    <Compile Include="Src\ControllerPackage\QueryHandler\CreateTableHandler.cs" />
     <Compile Include="Src\ControllerPackage\Query\CreateTableQuery\SqlCreateTableQuery.cs" />
     <Compile Include="Src\ControllerPackage\Query\EvaluationStrategy.cs" />
     <Compile Include="Src\ControllerPackage\Query\InsertQuery\SqlInsertQuery.cs" />

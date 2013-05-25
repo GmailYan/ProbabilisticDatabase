@@ -5,12 +5,30 @@ using ProbabilisticDatabase.Src.ControllerPackage.Query;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery;
 using ProbabilisticDatabase.Src.DatabaseEngine;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery;
+using ProbabilisticDatabase.Src.ControllerPackage.Query.CreateTableQuery;
 
 namespace PDtests
 {
     [TestClass]
     public class RegularExpressionTests
     {
+        [TestMethod]
+        public void TestNormalSqlCreateTable()
+        {
+            string sentences = "CREATE TABLE Car (RegId int, Colour varchar(255), Mileage float)";
+
+            SqlCreateTableQuery query = new SqlCreateTableQuery(sentences);
+
+            Assert.IsTrue(query.TableName == "Car");
+            Assert.IsTrue(query.AttributeNames.Count == 3);
+            Assert.IsTrue(query.AttributeNames[0] == "RegId");
+            Assert.IsTrue(query.AttributeNames[1] == "Colour");
+            Assert.IsTrue(query.AttributeNames[2] == "Mileage");
+            Assert.IsTrue(query.AttributeTypes[0] == "int");
+            Assert.IsTrue(query.AttributeTypes[1] == "varchar(255)");
+            Assert.IsTrue(query.AttributeTypes[2] == "float");
+        }
+
         [TestMethod]
         public void TestNormalSqlInsert()
         {

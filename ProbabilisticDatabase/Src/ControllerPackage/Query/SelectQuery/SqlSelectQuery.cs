@@ -11,7 +11,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
     {
         private string sql;
         private string _conditionClause;
-        private string _strategyClause;
+        private string _strategyClause="";
         private EvaluationStrategy _strategy;
         private string _tableName;
         private string _attributes;
@@ -45,19 +45,21 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         private void processAndPopulateEachField()
         {
             // pattern to match here is: select fields from tableORsubQuery where whereCondition EVALUATE USING xxx strategy
-            string sPattern = @"\s*SELECT\s+(?<attributes>.+)FROM\s+(?<tableClause>\w+)\s*((?<conditionClause>.+))";
+            string sPattern = @"\s*SELECT\s+(?<attributes>.+)FROM\s+(?<tableClause>.+?)\s*(\z|WHERE\s+(?<conditionClause>.+))";
             Match match = Regex.Match(this.sql, sPattern, RegexOptions.IgnoreCase);
 
             if (match.Success)
             {
                 _attributes = match.Groups["attributes"].Value;
                 String tableClause = match.Groups["tableClause"].Value;
-                var optionalClause = match.Groups["conditionClause"].Value;
+                var _conditionClause = match.Groups["conditionClause"].Value;
                
                 List<String> attributesName = processAttributesClause(_attributes);
                 processTableClause(tableClause, out _tableName, out _subQuery);
-                if (optionalClause.Length > 0)
-                    processOptionalClause(optionalClause, out _conditionClause, out _strategyClause);
+
+                //Todo: monte carlo strategy is disabled now
+                //if (optionalClause.Length > 0)
+                 //   processOptionalClause(optionalClause, out _conditionClause, out _strategyClause);
             }
             else
             {

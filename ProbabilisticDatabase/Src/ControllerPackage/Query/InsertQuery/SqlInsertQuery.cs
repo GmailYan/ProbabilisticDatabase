@@ -105,7 +105,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery
 
                 if (value != "" && probabilisticValues == "")
                 {
-                    AttributeValue pAttribute = new AttributeValue(value);
+                    DeterministicAttribute pAttribute = new DeterministicAttribute(value);
                     attributes.Add(pAttribute);
                 }
                 else

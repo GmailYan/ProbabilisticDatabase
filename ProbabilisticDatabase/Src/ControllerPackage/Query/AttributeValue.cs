@@ -6,7 +6,7 @@ using System.Text;
 namespace ProbabilisticDatabase.Src.ControllerPackage.Query
 {
 
-    public class AttributeValue
+    public class DeterministicAttribute
     {
         private string attributeValue;
 
@@ -16,7 +16,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
             set { attributeValue = value; }
         }
 
-        public AttributeValue(string value)
+        public DeterministicAttribute(string value)
         {
             attributeValue = value;
         }

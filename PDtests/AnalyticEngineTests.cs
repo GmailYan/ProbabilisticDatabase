@@ -16,34 +16,58 @@ namespace PDtests
         AnalyticEngine analyticEngine = new AnalyticEngine();
         StandardDatabase underlineDatabase = new StandardDatabase();
 
+
+        [TestMethod]
+        public void TesNormalInsertWithCreatedTable()
+        {
+            DropCarWorld();
+            string sentences = "CREATE TABLE Car (RegId int, Colour varchar(255), Mileage float)";
+
+            analyticEngine.submitNonQuerySQL(sentences);
+
+            string sentences2 = "INSERT INTO Car VALUES (101,red,500.25)";
+
+            analyticEngine.submitNonQuerySQL(sentences2);
+        }
+
+        private void DropCarWorld()
+        {
+            underlineDatabase.DropTableIfExist("Car_Answer");
+            underlineDatabase.DropTableIfExist("Car_0");
+            underlineDatabase.DropTableIfExist("Car_1");
+            underlineDatabase.DropTableIfExist("Car_2");
+            underlineDatabase.DropTableIfExist("Car_PossibleStates");
+            underlineDatabase.DropTableIfExist("Car_PossibleWorlds");
+        }
+
         [TestMethod]
         public void PossibleWorldSingleInsert()
         {
-            DropTables();
+            DropSocialDataTables();
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
             var table =analyticEngine.viewTable("socialData_PossibleWorlds");
-            Assert.AreEqual(table.Rows.Count,2);
+            Assert.AreEqual(table.Rows.Count,3);
 
-            DropTables();
+            DropSocialDataTables();
         }
 
         [TestMethod]
         public void PossibleWorldDoubleInsert()
         {
-            DropTables();
+            DropSocialDataTables();
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
             var table = analyticEngine.viewTable("socialData_PossibleWorlds");
             // 8 worlds, each with 2 rows(random variables)
             Assert.AreEqual(table.Rows.Count, 8*2);
 
-            DropTables();
+            DropSocialDataTables();
         }
 
         [TestMethod]
         public void PossibleWorldSimpleSelect()
         {
-            DropTables();
+            DropSocialDataTables();
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
             var table = analyticEngine.viewTable("socialData_PossibleWorlds");
@@ -57,13 +81,13 @@ namespace PDtests
             Assert.IsTrue(topAtt2 == "SMITH");
             var topP = (double)table2.Rows[0]["p"];
             Assert.IsTrue(topP >= 89.0);
-            DropTables();
+            DropSocialDataTables();
         }
 
         [TestMethod]
         public void PossibleWorldSimpleSelectWhereClause()
         {
-            DropTables();
+            DropSocialDataTables();
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
             var table = analyticEngine.viewTable("socialData_PossibleWorlds");
@@ -75,13 +99,13 @@ namespace PDtests
             Assert.IsNotNull(table2);
             Assert.AreEqual(table2.Rows[0]["att2"], "SMITH");
             Assert.AreEqual(table2.Rows.Count,1 );
-            DropTables();
+            DropSocialDataTables();
         }
 
         [TestMethod]
         public void PossibleWorldSimpleSelectWhereClause2()
         {
-            DropTables();
+            DropSocialDataTables();
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
             var table = analyticEngine.viewTable("socialData_PossibleWorlds");
@@ -94,7 +118,7 @@ namespace PDtests
             Assert.AreEqual(table2.Rows[0]["att1"],"185");
             Assert.AreEqual(table2.Rows[1]["att1"],"785");
             Assert.AreEqual(table2.Rows[0]["p"],table2.Rows[0]["p"]);
-            DropTables();
+            DropSocialDataTables();
         }
 
         [TestMethod]
@@ -155,12 +179,13 @@ namespace PDtests
             underlineDatabase.DropTableIfExist("CompanyStock_PossibleWorlds");
         }
 
-        private void DropTables()
+        private void DropSocialDataTables()
         {
             underlineDatabase.DropTableIfExist("socialData_Answer");
             underlineDatabase.DropTableIfExist("socialData_0");
             underlineDatabase.DropTableIfExist("socialData_1");
             underlineDatabase.DropTableIfExist("socialData_2");
+            underlineDatabase.DropTableIfExist("socialData_3");
             underlineDatabase.DropTableIfExist("socialData_PossibleStates");
             underlineDatabase.DropTableIfExist("socialData_PossibleWorlds");
         }

@@ -9,6 +9,7 @@ using ProbabilisticDatabase.Src.ControllerPackage;
 using ProbabilisticDatabase.Src.ControllerPackage.Query;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.CreateTableQuery;
+using ProbabilisticDatabase.Src.ControllerPackage.QueryHandler;
 
 namespace ProbabilisticDatabase.Src.ControllerPackage
 {
@@ -47,18 +48,14 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                     break;
                 case QueryType.CREATE:
                     var cquery = new SqlCreateTableQuery(sql);
-                    answerSet = HandleCreateSqlQuery(cquery);
+                    var handler = new CreateTableHandler(cquery,underlineDatabase);
+                    answerSet = handler.HandleCreateTableQuery();
                     break;
                 default:
                     break;
             }
 
             return "end of submitSQL function";
-        }
-
-        private DataTable HandleCreateSqlQuery(SqlCreateTableQuery cquery)
-        {
-            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -89,7 +86,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                 var sql = string.Format("SELECT {0} FROM {1}",
                     attributes, query.TableName + "_PossibleWorlds");
                 sql += " WHERE worldNo="+i;
-                if (query.ConditionClause != "")
+                if (query.ConditionClause != null && query.ConditionClause != "")
                 {
                     sql += " AND " + query.ConditionClause;
                 }
@@ -125,10 +122,11 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
             switch (evaluationStrategy)
             {
                 case EvaluationStrategy.Default: case EvaluationStrategy.Exact:
-                    var selectSql = string.Format("SELECT {0},dbo.IndependentProject(p) as p FROM {1} GROUP BY {0} ORDER BY p DESC", query.Attributes, answerTableName);
+                    var selectSql = string.Format("SELECT {0},Sum(p) as p FROM {1} GROUP BY {0} ORDER BY p DESC", query.Attributes, answerTableName);
                     result = underlineDatabase.ExecuteSqlWithResult(selectSql);
                     return result;
                 case EvaluationStrategy.MonteCarlo:
+                    //todo: monte carlo not used
                     var samplingResultTable = query.TableName+"_MonteCarloSampling";
                     var samplingRuns = 100;
                     
@@ -139,6 +137,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
 
         private DataTable ExecuteMonteCarloSampling(string samplingResultTable, string samplingTargetTable, int samplingRuns,SqlSelectQuery query)
         {
+            //:Todo not used
             Random random = new Random();
             
             var sql = String.Format("select count(*) from {0}", samplingTargetTable);
@@ -274,8 +273,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                 randomVariable = underlineDatabase.GetNextFreeVariableId(query.TableName);
                 if (randomVariable <= 0)
                 {
-                    // getNextFreeVariableID method fail in some way
-                    return;
+                    randomVariable = 1;
                 }
             }
 
@@ -395,7 +393,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
             {
                 newRow.SetField("worldNo", worldNo);
                 var numberOfColumn = dataRow.ItemArray.Count();
-                for (int i = 0; i < numberOfColumn - offset; i++)
+                for (int i = 1; i <= numberOfColumn - offset; i++)
                 {
                     newRow.SetField("att" + i, dataRow.Field<string>("att" + i));
                 }
@@ -423,42 +421,44 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
             var tableName = query.TableName;
 
             /* sql format is: 
-             * 
-INSERT INTO socialData_PossibleStates (var,v,att0,att1,att2,p)
-SELECT t0.var,row_number() over (order by t0.v,t1.v,t2.v) as v,t0.att0,t1.att1,t2.att2,(t0.p/100)*(t1.p/100)*(t2.p/100)*100 as p
-FROM socialData_0 as t0 cross join socialData_1 as t1 cross join socialData_2 as t2 
-WHERE t0.var=2 and t0.var = t1.var and t0.var = t2.var 
-             
+insert into socialData_PossibleStates (var,v ,att1 ,att2 ,att3,p) 
+select t1.var,row_number() over (order by  t1.v  ,t2.v  ,t3.v ) as v, t1.att1  ,t2.att2  ,t3.att3 , (t1.p/100)*  (t2.p/100)*  (t3.p/100)* 100 as p 
+from  socialData_0 as t0 cross join socialData_1 as t1  cross join socialData_2 as t2  cross join socialData_3 as t3  where  t0.var=1 and t0.var = t1.var and t0.var = t2.var and t0.var = t3.var 
+
             */
 
             string attributeClause = "var,v";
             string fromClause = "";
-            string whereClause = string.Format(" t0.var={0} and ",randomVariable);
+            string whereClause = "";
             string combiningVField = "";
             string combiningAttField = "";
             string combiningPField = "";
-            for (int i = 0; i < numberOfAttributes; i++)
+            for (int i = 0; i <= numberOfAttributes; i++)
             {
-                attributeClause += " ,att"+i;
+
                 combiningPField += string.Format(" (t{0}.p/100)* ", i); 
                 if (i==0)
                 {
+                    whereClause = string.Format(" t0.var={0} and ", randomVariable);
+                    // table_0 store tupleExistence data only, not attribute
                     fromClause += string.Format(" {0}_0 as t0 ",tableName);
-                    combiningVField += " t0.v ";
-                    combiningAttField += " t0.att0 ";
                 }
                 else
                 {
+                    attributeClause += " ,att" + i;
                     fromClause += string.Format(" cross join {0}_{1} as t{1} ", tableName,i);
-                    combiningVField += " ,t"+i+".v ";
-                    combiningAttField += string.Format(" ,t{0}.att{0} ",i);
+ 
                     if ( i==1)
                     {
                         whereClause += string.Format(" t0.var = t{0}.var ", i);
+                        combiningVField += " t1.v ";
+                        combiningAttField += " t1.att1 ";
                     }
                     else
                     {
                         whereClause += string.Format(" and t0.var = t{0}.var ", i);
+                        combiningVField += " ,t" + i + ".v ";
+                        combiningAttField += string.Format(" ,t{0}.att{0} ", i);
                     }
                    
                 }
@@ -471,29 +471,42 @@ WHERE t0.var=2 and t0.var = t1.var and t0.var = t2.var
                 tableName, attributeClause, selectClause, fromClause, whereClause);
 
             var result = underlineDatabase.ExecuteSql(sql);
+            
+            if(query.TupleP < 100.0){
+                var nullAttributes = "";
+                for (int i = 1; i <= attributes.Count; i++)
+                {
+                    nullAttributes += "null,";
+                }
 
+                var insertNoneExistenceState = string.Format("insert into {0}_PossibleStates values({1},0,{2}{3})", 
+                    tableName,randomVariable,nullAttributes,100-query.TupleP);
+                underlineDatabase.ExecuteSql(insertNoneExistenceState);
+            }
             //todo: can call front end to display the result
 
         }
 
         private void InsertAttributeValue(SqlInsertQuery query, List<Object> attributes, int randomVariable)
         {
-            for (int i = 0; i < attributes.Count; i++)
+
+            underlineDatabase.InsertValueIntoAttributeTable(query.TableName + "_0", randomVariable, 1,"TupleExistence",query.TupleP);
+
+            for (int i = 1; i <= attributes.Count; i++)
             {
                 string attributeTableName = query.TableName + "_" + i;
 
-                var value = attributes[i] as AttributeValue;
+                var value = attributes[i-1] as DeterministicAttribute;
                 if (value != null)
                 {
-                    AttributeValue attribute = value;
-                    double prob = 0;
-                    prob = i == 0 ? query.TupleP : 100;
-
+                    DeterministicAttribute attribute = value;
+                    double prob = 0; 
+                    prob = 100;
                     underlineDatabase.InsertValueIntoAttributeTable(attributeTableName, randomVariable, 1, attribute.AttributeValue1, prob);
                 }
                 else
                 {
-                    var probabilisticAttribute = attributes[i] as ProbabilisticAttribute;
+                    var probabilisticAttribute = attributes[i-1] as ProbabilisticAttribute;
                     if (probabilisticAttribute != null)
                     {
                         var attribute = probabilisticAttribute;
@@ -521,7 +534,7 @@ WHERE t0.var=2 and t0.var = t1.var and t0.var = t2.var
             List<String> attributeNamesList = attributeNames.ToList();
             List<String> attributeTypesList = attributeTypes.ToList();
 
-            for (int i = 0; i < attributes.Count; i++)
+            for (int i = 1; i <= attributes.Count; i++)
             {
                 string ai = "att" + i;
                 attributeNamesList.Add(ai);
@@ -544,7 +557,7 @@ WHERE t0.var=2 and t0.var = t1.var and t0.var = t2.var
             List<String> attributeNamesList = attributeNames.ToList();
             List<String> attributeTypesList = attributeTypes.ToList();
 
-            for (int i = 0; i < attributes.Count; i++)
+            for (int i = 1; i <= attributes.Count; i++)
             {
                 string ai = "att" + i;
                 attributeNamesList.Add(ai);
@@ -560,7 +573,11 @@ WHERE t0.var=2 and t0.var = t1.var and t0.var = t2.var
 
         private void createAttributeTables(SqlInsertQuery query, List<Object> attributes)
         {
-            for (int i = 0; i < attributes.Count; i++)
+            String[] attributeNames1 = { "var", "v", "att0","p" };
+            String[] attributeTypes1 = { "INT", "INT","NVARCHAR(MAX)","float" };
+            underlineDatabase.CreateNewTable(query.TableName + "_0", attributeNames1, attributeTypes1);
+
+            for (int i = 1; i <= attributes.Count; i++)
             {
                 string attributeTableName = query.TableName + "_" + i;
                 string ai = "att" + i;
