@@ -41,87 +41,120 @@ namespace PDtests
         }
 
         [TestMethod]
-        public void PossibleWorldSingleInsert()
+        public void EvaluateSingleInsertSQL()
         {
             DropSocialDataTables();
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
             var table =analyticEngine.viewTable("socialData_PossibleWorlds");
-            Assert.AreEqual(table.Rows.Count,3);
+            Assert.AreEqual(table.Rows.Count,2);
 
             DropSocialDataTables();
         }
 
         [TestMethod]
-        public void PossibleWorldDoubleInsert()
+        public void EvaluateDoubleInsertSQL()
         {
             DropSocialDataTables();
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
             var table = analyticEngine.viewTable("socialData_PossibleWorlds");
-            // 8 worlds, each with 2 rows(random variables)
-            Assert.AreEqual(table.Rows.Count, 8*2);
+            // 2 state 4 state, 8 worlds that each with 2 rows(random variables)
+            Assert.AreEqual(table.Rows.Count, 2*4*2);
 
             DropSocialDataTables();
         }
 
         [TestMethod]
-        public void PossibleWorldSimpleSelect()
+        public void EvaluateSimpleSelectSQL()
         {
             DropSocialDataTables();
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
-            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
-            var table = analyticEngine.viewTable("socialData_PossibleWorlds");
-            // 8 worlds, each with 2 rows(random variables)
-            Assert.AreEqual(table.Rows.Count, 8 * 2);
             DataTable table2;
 
             analyticEngine.submitQuerySQL("SELECT att2 FROM socialData",out table2);
-            Assert.AreEqual(table2.Rows.Count, 3);
-            var topAtt2 = (string)table2.Rows[0]["att2"];
-            Assert.IsTrue(topAtt2 == "SMITH");
-            var topP = (double)table2.Rows[0]["p"];
-            Assert.IsTrue(topP >= 89.0);
+
+            Assert.IsNotNull(table2);
+            Assert.AreEqual(table2.Rows.Count, 2);
+
+            Assert.IsTrue(dataRowEqual(table2.Rows[0], "185", 25));
+            Assert.IsTrue(dataRowEqual(table2.Rows[1], "785", 25));
+
             DropSocialDataTables();
         }
 
         [TestMethod]
-        public void PossibleWorldSimpleSelectWhereClause()
+        public void EvaluateNormalSelectSQL()
         {
             DropSocialDataTables();
-            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
-            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
-            var table = analyticEngine.viewTable("socialData_PossibleWorlds");
-            // 8 worlds, each with 2 rows(random variables)
-            Assert.AreEqual(table.Rows.Count, 8 * 2);
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH)");
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353,Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%)");
+
             DataTable table2;
 
-            analyticEngine.submitQuerySQL("SELECT att2 FROM socialData WHERE att1=785", out table2);
+            analyticEngine.submitQuerySQL("SELECT att2 FROM socialData", out table2);
             Assert.IsNotNull(table2);
-            Assert.AreEqual(table2.Rows[0]["att2"], "SMITH");
-            Assert.AreEqual(table2.Rows.Count,1 );
+            Assert.AreEqual(table2.Rows.Count, 4);
+            
+            Assert.IsTrue(dataRowEqual(table2.Rows[0], "786", 90));
+            Assert.IsTrue(dataRowEqual(table2.Rows[1], "785", 50));
+            Assert.IsTrue(dataRowEqual(table2.Rows[2], "185", 50));
+            Assert.IsTrue(dataRowEqual(table2.Rows[3], "186", 10));
+
             DropSocialDataTables();
         }
 
         [TestMethod]
-        public void PossibleWorldSimpleSelectWhereClause2()
+        public void EvaluateSimpleSelectWhereClause()
         {
             DropSocialDataTables();
-            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
-            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
-            var table = analyticEngine.viewTable("socialData_PossibleWorlds");
-            // 8 worlds, each with 2 rows(random variables)
-            Assert.AreEqual(table.Rows.Count, 8 * 2);
-            DataTable table2;
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH)");
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353,Probably 185 10% / 785 90% ,Probably James 20%/ Jane 80%)");
 
-            analyticEngine.submitQuerySQL("SELECT att1 FROM socialData WHERE att2='SMITH'", out table2);
-            Assert.IsNotNull(table2);
-            Assert.AreEqual(table2.Rows[0]["att1"],"185");
-            Assert.AreEqual(table2.Rows[1]["att1"],"785");
-            Assert.AreEqual(table2.Rows[0]["p"],table2.Rows[0]["p"]);
+            DataTable table2;
+            analyticEngine.submitQuerySQL("SELECT att2 FROM socialData WHERE att3 = 'SMITH'", out table2);
+            // correct probability distribution would be 785 50% / 185 50%
+
+            Assert.IsTrue(table2.Rows.Count == 2);
+            Assert.IsTrue(dataRowEqual(table2.Rows[0], "185", 50));
+            Assert.IsTrue(dataRowEqual(table2.Rows[1], "785", 50));
             DropSocialDataTables();
         }
 
+        private bool dataRowEqual(DataRow dataRow, string field1, int field2)
+        {
+            if (dataRow[0].ToString() != field1)
+            {
+                return false;
+            }
+
+            int integer;
+            int.TryParse(dataRow[1].ToString(), out integer);
+
+            if (integer != field2)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         [TestMethod]
+        public void EvaluateSimpleSelectWhereClause2()
+        {
+            DropSocialDataTables();
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH)");
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353,Probably 185 10% / 785 90% ,Probably James 20%/ Jane 80%)");
+
+            DataTable table2;
+            analyticEngine.submitQuerySQL("SELECT att2 FROM socialData", out table2);
+            Assert.IsTrue(table2.Rows.Count == 2);
+            // correct probability distribution would be 185 55%, 785 95%
+            Assert.IsTrue(dataRowEqual(table2.Rows[0], "785", 95));
+            Assert.IsTrue(dataRowEqual(table2.Rows[1], "185", 55));
+            DropSocialDataTables();
+        }
+
+       
         public void GetAllGoogleStockPrice(){
             SetupFinancialWorld();
 
@@ -181,6 +214,7 @@ namespace PDtests
 
         private void DropSocialDataTables()
         {
+            underlineDatabase.DropTableIfExist("socialData_Temp");
             underlineDatabase.DropTableIfExist("socialData_Answer");
             underlineDatabase.DropTableIfExist("socialData_0");
             underlineDatabase.DropTableIfExist("socialData_1");

@@ -15,7 +15,11 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         private EvaluationStrategy _strategy;
         private string _tableName;
         private string _attributes;
+
+        // Below fields are only related to subquery handling
         private SqlSelectQuery _subQuery;
+        private string _JoinOnAttributes;
+        private bool _hasSubquery;
 
         public SqlSelectQuery(string sql)
         {
@@ -52,10 +56,10 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
             {
                 _attributes = match.Groups["attributes"].Value;
                 String tableClause = match.Groups["tableClause"].Value;
-                var _conditionClause = match.Groups["conditionClause"].Value;
+                _conditionClause = match.Groups["conditionClause"].Value;
                
                 List<String> attributesName = processAttributesClause(_attributes);
-                processTableClause(tableClause, out _tableName, out _subQuery);
+                processTableClause(tableClause, out _hasSubquery ,out _tableName, out _subQuery, out _JoinOnAttributes);
 
                 //Todo: monte carlo strategy is disabled now
                 //if (optionalClause.Length > 0)
@@ -117,18 +121,19 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         /// <param name="tableClause"></param>
         /// <param name="tableName"></param>
         /// <param name="subQuery"></param>
-        private void processTableClause(string tableClause, out string tableName, out SqlSelectQuery subQuery)
+        private void processTableClause(string tableClause, out bool _hasSubquery, out string _tableName, out SqlSelectQuery _subQuery, out string _JoinOnAttributes)
         {
             // pattern here is: tableName or 2 table join or a sql select query all over again
             string sPattern = @"(?<tableName>\w+)";
             Match match = Regex.Match(tableClause, sPattern, RegexOptions.IgnoreCase);
-            tableName = "";
+            _tableName = "";
             if(match.Success)
             {
-                tableName = match.Groups["tableName"].Value;
+                _tableName = match.Groups["tableName"].Value;
             }
-            
-            subQuery = null;
+            _hasSubquery = false;
+            _subQuery = null;
+            _JoinOnAttributes = "";
         }
 
         private List<string> processAttributesClause(string attributes)
