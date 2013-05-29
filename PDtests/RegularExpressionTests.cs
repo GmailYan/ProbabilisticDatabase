@@ -98,7 +98,7 @@ namespace PDtests
         [TestMethod]
         public void TestParsingSelectQueryWithWhereClause()
         {
-            string sentences = "Select a,b,c from Data where a=25 and b=15 ";
+            string sentences = "Select a,b,c from Data where (a=25 and b=15)";
 
             SqlSelectQuery query = new SqlSelectQuery(sentences);
 
@@ -111,7 +111,7 @@ namespace PDtests
         [TestMethod]
         public void TestParsingSelectQueryWithWhereClauseAndStrategy()
         {
-            string sentences = "Select a,b,c from Data where a=25 and b=15 Evaluate using monte Carlo";
+            string sentences = "Select a,b,c from Data where (a=25 and b=15) Evaluate using (monte Carlo)";
 
             SqlSelectQuery query = new SqlSelectQuery(sentences);
 
@@ -124,7 +124,7 @@ namespace PDtests
         [TestMethod]
         public void TestParsingSelectQueryWithOnlyStrategy()
         {
-            string sentences = "Select a,b,c from Data Evaluate using monte Carlo";
+            string sentences = "Select a,b,c from Data Evaluate using (monte Carlo)";
 
             SqlSelectQuery query = new SqlSelectQuery(sentences);
 
@@ -132,6 +132,53 @@ namespace PDtests
             Assert.IsTrue(query.TableName.Trim() == "Data");
             Assert.IsTrue(query.ConditionClause.Trim() == "");
             Assert.IsTrue(query.Strategy.Equals(EvaluationStrategy.MonteCarlo));
+        }
+
+        [TestMethod]
+        public void TestParsingSelectQueryWithJoin()
+        {
+            string sentences = "Select a,b,c from [Data as t1 Join (SELECT * FROM Data2) as t2 on t1.ha=t2.ho]";
+
+            SqlSelectQuery query = new SqlSelectQuery(sentences);
+
+            Assert.IsTrue(query.Attributes.Trim() == "a,b,c");
+            Assert.IsTrue(query.TableName.Trim() == "Data");
+            Assert.IsTrue(query.ConditionClause.Trim() == "");
+            Assert.IsTrue(query.Strategy.Equals(EvaluationStrategy.Default));
+
+            var subquery = query.SubQuery;
+            Assert.IsTrue(query.JoinOnAttributes.Trim() == "t1.ha=t2.ho");
+            Assert.IsTrue(query.HasSubquery);
+            Assert.IsTrue(subquery.HasSubquery == false);
+            Assert.IsTrue(subquery.TableName.Trim() == "Data2");
+        }
+
+        [TestMethod]
+        public void TestParsingSelectQueryWithThreeJoin()
+        {
+            var secondJoin = string.Format("Select e,f,g from [Data2 as t1 Join (Select * FROM Data3) as t2 on t1.he=t2.hy]");
+            string sentences = string.Format("Select a,b,c from [Data as t1 Join ({0}) as t2 on t1.ha=t2.ho]",secondJoin);
+
+            SqlSelectQuery query = new SqlSelectQuery(sentences);
+
+            Assert.IsTrue(query.Attributes.Trim() == "a,b,c");
+            Assert.IsTrue(query.TableName.Trim() == "Data");
+            Assert.IsTrue(query.ConditionClause.Trim() == "");
+            Assert.IsTrue(query.Strategy.Equals(EvaluationStrategy.Default));
+            Assert.IsTrue(query.JoinOnAttributes.Trim() == "t1.ha=t2.ho");
+            Assert.IsTrue(query.HasSubquery == true);
+
+            var subquery = query.SubQuery;
+            Assert.IsTrue(subquery.HasSubquery == true);
+            Assert.IsTrue(subquery.TableName.Trim() == "Data2");
+            Assert.IsTrue(subquery.Attributes == "e,f,g");
+            Assert.IsTrue(subquery.JoinOnAttributes.Trim() == "t1.he=t2.hy");
+
+            var subsubquery = subquery.SubQuery;
+            Assert.IsTrue(subsubquery.HasSubquery == false);
+            Assert.IsTrue(subsubquery.TableName.Trim() == "Data3");
+            Assert.IsTrue(subsubquery.Attributes == "*");
+
         }
     }
 

@@ -111,7 +111,7 @@ namespace PDtests
             analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353,Probably 185 10% / 785 90% ,Probably James 20%/ Jane 80%)");
 
             DataTable table2;
-            analyticEngine.submitQuerySQL("SELECT att2 FROM socialData WHERE att3 = 'SMITH'", out table2);
+            analyticEngine.submitQuerySQL("SELECT att2 FROM socialData WHERE (att3 = 'SMITH')", out table2);
             // correct probability distribution would be 785 50% / 185 50%
 
             Assert.IsTrue(table2.Rows.Count == 2);
@@ -154,7 +154,46 @@ namespace PDtests
             DropSocialDataTables();
         }
 
-       
+        [TestMethod]
+        public void EvaluateSelectQueryWithJoin()
+        {
+            SetupBiggerSocialDataWorld();
+
+            DataTable table;
+            analyticEngine.submitQuerySQL("select att2 from [socialData as t1 join (SELECT * FROM socialInfo) as t2 on t1.att2=t2.att1] where (t1.att3='SMITH')",out table);
+
+            DropBiggerSocialDataWorld();
+        }
+
+
+        private void SetupBiggerSocialDataWorld()
+        {
+            //clean the environment before start actual test
+            DropBiggerSocialDataWorld();
+
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH)");
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353,Probably 185 10% / 785 90% ,Probably James 20%/ Jane 80%)");
+
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialInfo VALUES (185,PROBABLY HighIncome 50% / NormalIncome 50%,NoSupportNeeded)");
+            analyticEngine.submitNonQuerySQL("INSERT INTO socialInfo VALUES (785,Probably NormalIncome 10% / LowIncome 90% ,Probably NeedSupport 20%/ NoSupportNeeded 80%)");
+ 
+
+        }
+
+        private void DropBiggerSocialDataWorld()
+        {
+            DropSocialDataTables();
+
+            underlineDatabase.DropTableIfExist("socialInfo_Temp");
+            underlineDatabase.DropTableIfExist("socialInfo_Answer");
+            underlineDatabase.DropTableIfExist("socialInfo_0");
+            underlineDatabase.DropTableIfExist("socialInfo_1");
+            underlineDatabase.DropTableIfExist("socialInfo_2");
+            underlineDatabase.DropTableIfExist("socialInfo_3");
+            underlineDatabase.DropTableIfExist("socialInfo_PossibleStates");
+            underlineDatabase.DropTableIfExist("socialInfo_PossibleWorlds");
+        }
+
         public void GetAllGoogleStockPrice(){
             SetupFinancialWorld();
 
@@ -167,7 +206,7 @@ namespace PDtests
             DropFinancialWorld();
         }
 
-        public void SetupFinancialWorld()
+        private void SetupFinancialWorld()
         {
             //clean the environment before start actual test
             DropFinancialWorld();
@@ -203,11 +242,13 @@ namespace PDtests
             underlineDatabase.DropTableIfExist("CompanyInfo_0");
             underlineDatabase.DropTableIfExist("CompanyInfo_1");
             underlineDatabase.DropTableIfExist("CompanyInfo_2");
+            underlineDatabase.DropTableIfExist("CompanyInfo_3");
             underlineDatabase.DropTableIfExist("CompanyInfo_PossibleStates");
             underlineDatabase.DropTableIfExist("CompanyInfo_PossibleWorlds");
 
             underlineDatabase.DropTableIfExist("CompanyStock_0");
             underlineDatabase.DropTableIfExist("CompanyStock_1");
+            underlineDatabase.DropTableIfExist("CompanyStock_2");
             underlineDatabase.DropTableIfExist("CompanyStock_PossibleStates");
             underlineDatabase.DropTableIfExist("CompanyStock_PossibleWorlds");
         }
