@@ -285,6 +285,19 @@ from  socialData_0 as t0 cross join socialData_1 as t1  cross join socialData_2 
                 tableName, attributeClause, selectClause, fromClause, whereClause);
 
             var result = underlineDatabase.ExecuteSql(sql);
+            
+            // Adding null state here if tuple may not exist, otherwise naive strategy would calculate incorrect result
+            if(query.TupleP < 100.0){
+                var nullAttributes = "";
+                for (int i = 1; i <= attributes.Count; i++)
+                {
+                    nullAttributes += "null,";
+                }
+
+                var insertNoneExistenceState = string.Format("insert into {0}_PossibleStates values({1},0,{2}{3})", 
+                    tableName,randomVariable,nullAttributes,100-query.TupleP);
+                underlineDatabase.ExecuteSql(insertNoneExistenceState);
+            }
 
         }
 
