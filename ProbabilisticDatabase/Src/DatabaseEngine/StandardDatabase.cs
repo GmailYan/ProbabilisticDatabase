@@ -230,5 +230,65 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             }
             
         }
+
+        public void CreateNewTableWithDataTable(string tableName, DataTable content)
+        {
+            DropTableIfExist(tableName);
+            string[] attributes;
+            string[] attributeTypes;
+            GetDataTableAttributesAndType(content,out attributes, out attributeTypes);
+            CreateNewTable(tableName,attributes,attributeTypes);
+            WriteTableBacktoDatabase2(tableName,content,attributes);
+        }
+
+        private void WriteTableBacktoDatabase2(string tableName, DataTable content, string[] attributes)
+        {
+            int colSize = content.Columns.Count;
+
+            foreach (DataRow row in content.Rows)
+            {
+                string value = row[0].ToString();
+                for(int i = 1;i<colSize;i++)
+                {
+                    value += ",'" + row[i] + "'";
+                }
+                
+                var insertSQL = string.Format("INSERT INTO {0} VALUES({1})",tableName,value);
+                ExecuteSql(insertSQL);
+            }
+            
+        }
+
+        private static void GetDataTableAttributesAndType(DataTable content, out string[] attributes, out string[] attributeTypes)
+        {
+            var att = new List<string>();
+            var attType = new List<string>();
+
+            foreach (DataColumn col in content.Columns)
+            {
+                att.Add(col.ColumnName);
+                attType.Add(MapCLRTypeToSqlType(col.DataType.Name));
+            }
+            attributes = att.ToArray();
+            attributeTypes = attType.ToArray();
+        }
+
+        private static string MapCLRTypeToSqlType(string p)
+        {
+            switch (p)
+            {
+                case "Int32":
+                    return "int";
+                case "Int64":
+                    return "int";
+                case "String":
+                    return "varchar(255)";
+                case "Double":
+                    return "float";
+                default:
+                    return "varchar(255)";
+            }
+        }
+
     }
 }
