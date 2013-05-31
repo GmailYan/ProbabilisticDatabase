@@ -161,6 +161,26 @@ namespace PDtests
             return true;
         }
 
+        private bool dataRowEqual2(DataRow dataRow, params string[] values)
+        {
+            int rowSize = dataRow.Table.Columns.Count;
+            if ( rowSize != values.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < rowSize; i++)
+            {
+                var stringRowValue = dataRow[i].ToString();
+                if (stringRowValue != values[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         [TestMethod]
         public void EvaluateSimpleSelectWhereClause2()
         {
@@ -183,9 +203,17 @@ namespace PDtests
             SetupBiggerSocialDataWorld();
 
             DataTable table;
-            _analyticEngine.submitQuerySQL("select t1.att3,t1.att2,t2.att1,t2.att2 from [socialData as t1 join (SELECT att1,att2 FROM socialInfo) as t2 on t1.att2=t2.att1] where (t1.att3='SMITH')",out table);
-
+            _analyticEngine.submitQuerySQL("select att3,att2,t2att1,t2att2 from "+
+                "[socialData as t1 join (SELECT att1 as t2att1,att2 as t2att2 FROM socialInfo) as t2 on att2=t2att1] where (att3='SMITH')",out table);
             DropBiggerSocialDataWorld();
+
+            Assert.IsNotNull(table);
+            Assert.IsTrue(table.Rows.Count==4);
+            Assert.IsTrue(dataRowEqual2(table.Rows[0], "SMITH", "785", "785", "LowIncome", "45"));
+            Assert.IsTrue(dataRowEqual2(table.Rows[1], "SMITH", "185", "185", "HighIncome", "25"));
+            Assert.IsTrue(dataRowEqual2(table.Rows[2], "SMITH", "185","185" ,"NormalIncome", "25"));
+            Assert.IsTrue(dataRowEqual2(table.Rows[3], "SMITH", "785","785", "NormalIncome", "5"));
+            
         }
 
 

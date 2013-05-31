@@ -20,6 +20,11 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
             this.underlineDatabase = underlineDatabase;
         }
 
+        public DataTable HandleSelectSqlQuery()
+        {
+            return HandleSelectSqlQuery(false);
+        }
+
         /// <summary>
         /// procedure are in 2 stages, stage 1 apply raw Where Clause to get data interested
         /// stage 2, apply evaluation strategy to get the overall result
@@ -28,39 +33,40 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
         /// this table in PD, and return results in the descending order of probability
         /// </summary>
         /// <param name="query"></param>
-        public DataTable HandleSelectSqlQuery()
+        public DataTable HandleSelectSqlQuery(bool isIntermediateResult)
         {
             if (_query.HasSubquery)
             {
                 var table1 = _query.TableName; 
                 var subQueryHandler = new SelectQueryHandler(_query.SubQuery, underlineDatabase);
-                var table2 = subQueryHandler.HandleSelectSqlQuery();
+                var table2 = subQueryHandler.HandleSelectSqlQuery(true);
                 underlineDatabase.CreateNewTableWithDataTable("subquery_PossibleWorlds", table2);
                 PreparePossibleWorldsAggregatedTable("subquery");
+                
                 JoinPossibleWorlds(table1 + "_PossibleWorlds", "subquery_PossibleWorlds", "answer_PossibleWorlds",
                     _query.JoinOnAttributes,_query.Attributes);
                 JoinPossibleWorldsAggregatedTable(table1+"_PossibleWorldsAggregated", "subquery_PossibleWorldsAggregated", "answer_PossibleWorldsAggregated");
 
-                DataTable result = NaiveStrategy(_query.Attributes, _query.ConditionClause, "answer");
+                DataTable result = NaiveStrategy(_query.Attributes, _query.ConditionClause, "answer",isIntermediateResult);
                 return result;
             }
             else
             {
                 // no more subquery/join, now just consider a single table
                 var answerTableName = "needToGetRidOfThisVariable";
-                DataTable result = ComputeJointResultUsingStrategy(_query.Attributes, answerTableName, _query.Strategy, _query);
+                DataTable result = ComputeJointResultUsingStrategy(_query.Attributes, answerTableName, _query.Strategy, _query,isIntermediateResult);
                 return result;
             }
         }
 
         private void JoinPossibleWorlds(string t1, string t2, string resultTable, string joinCondition, string attributeSelected)
         {
-            DataTable selectResult = underlineDatabase.ExecuteSqlWithResult("SELECT count(*) FROM (SELECT DISTINCT worldNo FROM "+t2+")");
+            DataTable selectResult = underlineDatabase.ExecuteSqlWithResult("SELECT count(*) FROM (SELECT DISTINCT worldNo FROM "+t2+") as tt");
             var t2WorldSize = selectResult.Rows[0][0].ToString();
 
             var joinWorldNo = string.Format("(t1.worldNo-1)*{0} + t2.worldNo as worldNo",t2WorldSize);
             var joinProbability = string.Format("(t1.p/100)*(t2.p/100)*100 as p");
-            var joinSql = string.Format("SELECT {4},{0},{5} FROM {1} as t1 join {2} as t2 on {3}",
+            var joinSql = string.Format("SELECT {4},{0},{5} FROM {1} as t1 full join {2} as t2 on {3}",
                 attributeSelected, t1, t2, joinCondition, joinWorldNo, joinProbability);
 
             var joinedTable = underlineDatabase.ExecuteSqlWithResult(joinSql);
@@ -69,8 +75,8 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
 
         private void JoinPossibleWorldsAggregatedTable(string t1, string t2, string resultTable)
         {
-            var joinSql = string.Format("select ROW_NUMBER() over (order by t1.worldNo,t2.worldNo) as worldNo ,(t1.p/100)*(t2.p/100)*100 as p" +
-                                        "FROM {0} as t1 cross join {1} as t1",t1,t2);
+            var joinSql = string.Format("select ROW_NUMBER() over (order by t1.worldNo,t2.worldNo) as worldNo ,(t1.p/100)*(t2.p/100)*100 as p " +
+                                        "FROM {0} as t1 cross join {1} as t2",t1,t2);
             DataTable joinResult = underlineDatabase.ExecuteSqlWithResult(joinSql);
             underlineDatabase.CreateNewTableWithDataTable(resultTable,joinResult);
         }
@@ -83,14 +89,14 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
         /// <param name="answerTableName"></param>
         /// <param name="evaluationStrategy"></param>
         /// <returns></returns>
-        private DataTable ComputeJointResultUsingStrategy(string attributes, string answerTableName, EvaluationStrategy evaluationStrategy, SqlSelectQuery query)
+        private DataTable ComputeJointResultUsingStrategy(string attributes, string answerTableName, EvaluationStrategy evaluationStrategy, SqlSelectQuery query, bool intermediate)
         {
             DataTable result = new DataTable();
             switch (evaluationStrategy)
             {
                 case EvaluationStrategy.Default:
                     PreparePossibleWorldsAggregatedTable(query.TableName);
-                    return NaiveStrategy(attributes,query.ConditionClause,query.TableName);
+                    return NaiveStrategy(attributes,query.ConditionClause,query.TableName,intermediate);
 
                 case EvaluationStrategy.Exact:
                     var selectSql = string.Format("SELECT {0},Sum(p) as p FROM {1} GROUP BY {0} ORDER BY p DESC", query.Attributes, answerTableName);
@@ -125,7 +131,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
         /// <param name="whereCondition"></param>
         /// <param name="tableName"> expect tableName_PossibleWorlds and tableName_PossibleWorldsAggregated already prepared</param>
         /// <returns></returns>
-        private DataTable NaiveStrategy(string attributes , string whereCondition, string tableName)
+        private DataTable NaiveStrategy(string attributes , string whereCondition, string tableName, bool intermediate)
         {
             var answerTableName = string.Format("{0}_Answer", tableName);
             underlineDatabase.DropTableIfExist(answerTableName);
@@ -143,6 +149,10 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
                 string applyWhereClause2 = string.Format("SELECT worldNo,{0},p INTO {2} FROM {1}",
                     attributes, tableName + "_PossibleWorlds", answerTableName);
                 underlineDatabase.ExecuteSql(applyWhereClause2);
+            }
+
+            if(intermediate){
+                return underlineDatabase.ExecuteSqlWithResult("SELECT * FROM " + answerTableName);
             }
 
             var gettingAnswersSQL = string.Format("SELECT DISTINCT worldNo,{0} FROM {1}_Answer", attributes, tableName);

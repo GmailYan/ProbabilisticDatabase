@@ -66,7 +66,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         private void processAndPopulateEachField()
         {
             // pattern to match here is: select fields from tableORsubQuery where whereCondition EVALUATE USING xxx strategy
-            string sPattern = @"\A\s*SELECT\s+(?<attributes>[\*\,\.\w\d]+)\s+FROM\s+(\[(?<tableClause>.+)\]|(?<tableName>\w+))\s*(?<conditionClause>.*)";
+            string sPattern = @"\A\s*SELECT\s+(?<attributes>.+?)\s+FROM\s+(\[(?<tableClause>.+)\]|(?<tableName>\w+))\s*(?<conditionClause>.*)";
             Match match = Regex.Match(this.sql, sPattern, RegexOptions.IgnoreCase);
 
             if (match.Success)
@@ -87,7 +87,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
                 }
                 var optionalClause = match.Groups["conditionClause"].Value;
                
-                List<String> attributesName = processAttributesClause(_attributes);
+                //List<String> attributesName = processAttributesClause(_attributes);
 
                 if (optionalClause.Length > 0)
                    processOptionalClause(optionalClause, out _conditionClause, out _strategyClause);
