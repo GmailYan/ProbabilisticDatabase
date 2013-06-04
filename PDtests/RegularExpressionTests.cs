@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Text.RegularExpressions;
 using ProbabilisticDatabase.Src.ControllerPackage.Query;
+using ProbabilisticDatabase.Src.ControllerPackage.Query.Attribute;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery;
 using ProbabilisticDatabase.Src.DatabaseEngine;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery;
@@ -57,7 +58,7 @@ namespace PDtests
             Assert.IsTrue(query.TableName == "socialData");
             Assert.IsTrue(query.Attributes.Count == 4);
 
-            ProbabilisticAttribute p = (ProbabilisticAttribute)query.Attributes[1];
+            ProbabilisticSingleAttribute p = (ProbabilisticSingleAttribute)query.Attributes[1];
             Assert.IsTrue(p.Values[0] == "785");
             Assert.IsTrue(p.Probs[0] == 25.0);
         }
@@ -75,7 +76,7 @@ namespace PDtests
             Assert.IsTrue(query.TableName == "socialData");
             Assert.IsTrue(query.Attributes.Count == 4);
 
-            ProbabilisticAttribute p = (ProbabilisticAttribute)query.Attributes[1];
+            ProbabilisticSingleAttribute p = (ProbabilisticSingleAttribute)query.Attributes[1];
             Assert.IsTrue(p.Values[0] == "785");
             Assert.IsTrue(p.Probs[0] == 25.0);
             Assert.IsTrue(p.Values[1] == "185");
@@ -83,16 +84,87 @@ namespace PDtests
         }
 
         [TestMethod]
+        public void TestInsertWithFullyDependentColumns()
+        {
+            string sentences = "INSERT INTO socialData(att1,att3,att2,att4) VALUES (351,Smith,PROBABLY [785 Single] 25%/ [185 Married] 75%)";
+
+            SqlInsertQuery query = new SqlInsertQuery(sentences);
+
+            query.processAndPopulateEachField();
+
+            Assert.IsTrue((int)query.TupleP == 100);
+            Assert.IsTrue(query.TableName == "socialData");
+            Assert.IsTrue(query.Attributes.Count == 3);
+            var multiColumn = (ProbabilisticMultiAttribute)query.Attributes[2];
+            Assert.IsTrue(multiColumn.MultiAttrbutes.Count == 2);
+
+            Assert.IsTrue((int)multiColumn.PValues[0] == 25);
+            Assert.IsTrue((int)multiColumn.PValues[1] == 75);
+
+            var value1 = multiColumn.MultiAttrbutes[0];
+            Assert.IsTrue(value1.Count == 2);
+            Assert.IsTrue(value1[0] == "785");
+            Assert.IsTrue(value1[1] == "Single");
+
+            var value2 = multiColumn.MultiAttrbutes[1];
+            Assert.IsTrue(value2.Count == 2);
+            Assert.IsTrue(value2[0] == "185");
+            Assert.IsTrue(value2[1] == "Married");
+        }
+
+        [TestMethod]
+        public void TestInsertWithColumnNameSpecified()
+        {
+            string sentences = "INSERT INTO socialData(att1,att3,att2,att4) VALUES (351,Smith,hoho,haha)";
+
+            SqlInsertQuery query = new SqlInsertQuery(sentences);
+
+            query.processAndPopulateEachField();
+            var colNames = query.ColNames;
+
+            Assert.IsNotNull(colNames);
+            Assert.IsTrue(colNames.Count == 4);
+            Assert.IsTrue(colNames[0] == "att1");
+            Assert.IsTrue(colNames[1] == "att3");
+            Assert.IsTrue(colNames[2] == "att2");
+            Assert.IsTrue(colNames[3] == "att4");
+        }
+
+        [TestMethod]
         public void TestParsingProbClause()
         {
             string sentences = "785 25% / 185 50% ";
-
-            ProbabilisticAttribute pa = SqlInsertQuery.processProbabilisticValueClause(sentences);
+            var pa = (ProbabilisticSingleAttribute)SqlInsertQuery.processProbabilisticValueClause(sentences);
 
             Assert.IsTrue(pa.Probs.Count == 2);
             Assert.IsTrue(pa.Values.Count == 2);
+            Assert.IsTrue(pa.Values[0] == "785");
+            Assert.IsTrue(pa.Probs[0] == 25.0);
             Assert.IsTrue(pa.Values[1] == "185");
             Assert.IsTrue(pa.Probs[1] == 50.0);
+        }
+
+        [TestMethod]
+        public void TestParsingMultiAttributeClause()
+        {
+            string sentences = "[785 Single] 25%/ [185 Married] 75%";
+            var pa = (ProbabilisticMultiAttribute)SqlInsertQuery.processProbabilisticValueClause(sentences);
+
+            Assert.IsNotNull(pa);
+            Assert.IsTrue(pa.MultiAttrbutes.Count == 2);
+            Assert.IsTrue(pa.PValues.Count == 2);
+
+            var firstValue = pa.MultiAttrbutes[0];
+            Assert.IsTrue(firstValue.Count == 2);
+            Assert.IsTrue(firstValue[0] == "785");
+            Assert.IsTrue(firstValue[1] == "Single");
+            Assert.IsTrue((int)pa.PValues[0] == 25);
+
+            var secondValue = pa.MultiAttrbutes[1];
+            Assert.IsTrue(secondValue.Count == 2);
+            Assert.IsTrue(secondValue[0] == "185");
+            Assert.IsTrue(secondValue[1] == "Married");
+            Assert.IsTrue((int)pa.PValues[1] == 75);
         }
 
         [TestMethod]

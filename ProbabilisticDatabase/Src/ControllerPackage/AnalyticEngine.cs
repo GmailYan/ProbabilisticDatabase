@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using ProbabilisticDatabase.Src.ControllerPackage.Query.Attribute;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery;
 using ProbabilisticDatabase.Src.DatabaseEngine;
 using System;
@@ -320,7 +321,7 @@ from  socialData_0 as t0 cross join socialData_1 as t1  cross join socialData_2 
                 }
                 else
                 {
-                    var probabilisticAttribute = attributes[i-1] as ProbabilisticAttribute;
+                    var probabilisticAttribute = attributes[i-1] as ProbabilisticSingleAttribute;
                     if (probabilisticAttribute != null)
                     {
                         var attribute = probabilisticAttribute;

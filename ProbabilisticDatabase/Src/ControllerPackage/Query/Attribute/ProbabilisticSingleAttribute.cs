@@ -1,12 +1,8 @@
-﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace ProbabilisticDatabase.Src.ControllerPackage.Query
+namespace ProbabilisticDatabase.Src.ControllerPackage.Query.Attribute
 {
-    public class ProbabilisticAttribute
+    public class ProbabilisticSingleAttribute : ProbabilisticAttribute
     {
         List<string> values;
 
@@ -23,7 +19,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
             set { probs = value; }
         }
 
-        public ProbabilisticAttribute(List<string> value,List<double> prob)
+        public ProbabilisticSingleAttribute(List<string> value,List<double> prob)
         {
             this.values = value;
             this.probs = prob;
