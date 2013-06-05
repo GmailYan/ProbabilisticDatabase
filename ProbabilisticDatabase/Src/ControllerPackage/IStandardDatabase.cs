@@ -24,5 +24,6 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
         void WriteTableBacktoDatabase(string tableName, DataTable result);
         void DropTableIfExist(string tableName);
         void CreateNewTableWithDataTable(string tableName, DataTable content);
+        void InsertValueIntoAttributeTable(string attributeTableName, int randomVariable, int value, List<string> attributes, double prob);
     }
 }

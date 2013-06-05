@@ -41,7 +41,8 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
                 case QueryType.INSERT:
                     var query = new SqlInsertQuery(sql);
                     query.processAndPopulateEachField();
-                    HandleInsertSqlQuery(query);
+                    var iHandler = new InsertQueryHandler(query, underlineDatabase);
+                    answerSet = iHandler.HandleInsertQuery();
                     break;
                 case QueryType.SELECT:
                     var squery = new SqlSelectQuery(sql);

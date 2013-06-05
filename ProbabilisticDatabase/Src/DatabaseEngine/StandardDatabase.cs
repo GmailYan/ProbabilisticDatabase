@@ -55,6 +55,10 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
 
         public void CreateNewTable(string table, string[] attributeNames, string[] attributeTypes)
         {
+            if (CheckIsTableAlreadyExist(table))
+            {
+                return;
+            }
             // example create sql: CREATE TABLE Dogs1 (Weight INT, Name TEXT, Breed TEXT)
             string attributeClause = "";
             for (int i = 0; i < attributeNames.Length; i++ )
@@ -84,6 +88,16 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             Trace.WriteLine("SQL executed : "+ sqlString);
         }
 
+        public void InsertValueIntoAttributeTable(string attributeTableName, int randomVariable, int value, List<string> attributes, double prob)
+        {
+            // format for insert query : INSERT INTO table_name VALUES (value1, value2, value3,...)
+            string attribute = string.Join("','", attributes);
+            string sqlString = "INSERT INTO " + attributeTableName +
+                              " VALUES (" + randomVariable + "," + value + ",'" + attribute + "'," + prob + ")";
+            ExecuteSql(sqlString);
+
+            Trace.WriteLine("SQL executed : " + sqlString);
+        }
         /// <summary>
         /// return string is either the error message if error encountered, or success message
         /// </summary>
@@ -240,6 +254,8 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             CreateNewTable(tableName,attributes,attributeTypes);
             WriteTableBacktoDatabase2(tableName,content,attributes);
         }
+
+
 
         private void WriteTableBacktoDatabase2(string tableName, DataTable content, string[] attributes)
         {

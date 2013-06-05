@@ -49,8 +49,22 @@ namespace PDtests
         {
             DropSocialDataTables();
             _analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
-            var table =_analyticEngine.viewTable("socialData_PossibleWorlds");
-            Assert.AreEqual(table.Rows.Count,2);
+            var table0 =_analyticEngine.viewTable("socialData_0");
+            Assert.IsTrue(table0.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table0.Rows[0], "1", "1", "socialData_1,socialData_2,socialData_3", "50"));
+
+            var table1 = _analyticEngine.viewTable("socialData_1");
+            Assert.IsTrue(table1.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table1.Rows[0],"1","1","351","100"));
+
+            var table2 = _analyticEngine.viewTable("socialData_2");
+            Assert.IsTrue(table2.Rows.Count == 2);
+            Assert.IsTrue(dataRowEqual2(table2.Rows[0], "1", "1", "785", "50"));
+            Assert.IsTrue(dataRowEqual2(table2.Rows[1], "1", "2", "185", "50"));
+
+            var table3 = _analyticEngine.viewTable("socialData_3");
+            Assert.IsTrue(table3.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table3.Rows[0], "1", "1", "SMITH", "100"));
 
             DropSocialDataTables();
         }
@@ -60,10 +74,80 @@ namespace PDtests
         {
             DropSocialDataTables();
             _analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH) PROBABLY 50%");
-            _analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353, Probably 186 10% / 786 90% ,Probably James 20%/ Jane 80%) PROBABLY 40%");
-            var table = _analyticEngine.viewTable("socialData_PossibleWorlds");
-            // 2 state 4 state, 8 worlds that each with 2 rows(random variables)
-            Assert.AreEqual(table.Rows.Count, 2*4*2);
+            _analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (353,Probably [186 James] 10% / [786 Jane] 90%) PROBABLY 40%");
+            
+            var table0 = _analyticEngine.viewTable("socialData_0");
+            Assert.IsTrue(table0.Rows.Count == 2);
+            Assert.IsTrue(dataRowEqual2(table0.Rows[0], "1", "1", "socialData_1,socialData_2,socialData_3", "50"));
+            Assert.IsTrue(dataRowEqual2(table0.Rows[1], "2", "1", "socialData_1,socialData_23", "40"));
+
+            var table1 = _analyticEngine.viewTable("socialData_1");
+            Assert.IsTrue(table1.Rows.Count == 2);
+            Assert.IsTrue(dataRowEqual2(table1.Rows[0], "1", "1", "351", "100"));
+            Assert.IsTrue(dataRowEqual2(table1.Rows[1], "2", "1", "353", "100"));
+
+            var table2 = _analyticEngine.viewTable("socialData_2");
+            Assert.IsTrue(table2.Rows.Count == 2);
+            Assert.IsTrue(dataRowEqual2(table2.Rows[0], "1", "1", "785", "50"));
+            Assert.IsTrue(dataRowEqual2(table2.Rows[1], "1", "2", "185", "50"));
+
+            var table3 = _analyticEngine.viewTable("socialData_3");
+            Assert.IsTrue(table3.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table3.Rows[0], "1", "1", "SMITH", "100"));
+
+            var table23 = _analyticEngine.viewTable("socialData_23");
+            Assert.IsTrue(table23.Rows.Count == 2);
+            Assert.IsTrue(dataRowEqual2(table23.Rows[0], "2", "1", "186", "James", "10"));
+            Assert.IsTrue(dataRowEqual2(table23.Rows[1], "2", "2", "786", "Jane", "90"));
+
+            DropSocialDataTables();
+        }
+
+        [TestMethod]
+        public void EvaluateInsertPartlyDependent()
+        {
+            DropSocialDataTables();
+            _analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY [785 SMITH] 50% / [185 James] 50%)");
+            
+            var table0 = _analyticEngine.viewTable("socialData_0");
+            Assert.IsTrue(table0.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table0.Rows[0], "1", "1", "socialData_1,socialData_23", "100"));
+
+            var table1 = _analyticEngine.viewTable("socialData_1");
+            Assert.IsTrue(table1.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table1.Rows[0], "1", "1", "351", "100"));
+
+            var table2 = _analyticEngine.viewTable("socialData_23");
+            Assert.IsTrue(table2.Rows.Count == 2);
+            Assert.IsTrue(dataRowEqual2(table2.Rows[0], "1", "1", "785","SMITH" ,"50"));
+            Assert.IsTrue(dataRowEqual2(table2.Rows[1], "1", "2", "185","James" ,"50"));
+
+            DropSocialDataTables();
+        }
+
+
+        [TestMethod]
+        public void EvaluateInsertInReverseOrder()
+        {
+            DropSocialDataTables();
+            _analyticEngine.submitNonQuerySQL("INSERT INTO socialData(att4,att1,att3,att2) VALUES (Single,351,PROBABLY [SMITH 785] 40% / [James 185] 60%)");
+            
+            var table0 = _analyticEngine.viewTable("socialData_0");
+            Assert.IsTrue(table0.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table0.Rows[0], "1", "1", "socialData_4,socialData_1,socialData_32", "100"));
+
+            var table1 = _analyticEngine.viewTable("socialData_1");
+            Assert.IsTrue(table1.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table1.Rows[0], "1", "1", "351", "100"));
+
+            var table2 = _analyticEngine.viewTable("socialData_32");
+            Assert.IsTrue(table2.Rows.Count == 2);
+            Assert.IsTrue(dataRowEqual2(table2.Rows[0], "1", "1", "SMITH", "785", "40"));
+            Assert.IsTrue(dataRowEqual2(table2.Rows[1], "1", "2", "James", "185", "60"));
+
+            var table4 = _analyticEngine.viewTable("socialData_4");
+            Assert.IsTrue(table4.Rows.Count == 1);
+            Assert.IsTrue(dataRowEqual2(table4.Rows[0], "1", "1", "Single", "100"));
 
             DropSocialDataTables();
         }
@@ -78,10 +162,30 @@ namespace PDtests
             _analyticEngine.submitQuerySQL("SELECT att2 FROM socialData",out table2);
 
             Assert.IsNotNull(table2);
+            Assert.AreEqual(table2.Rows.Count, 3);
+
+            Assert.IsTrue(dataRowEqual(table2.Rows[0], "", 50));
+            Assert.IsTrue(dataRowEqual(table2.Rows[1], "185", 25));
+            Assert.IsTrue(dataRowEqual(table2.Rows[2], "785", 25));
+
+            DropSocialDataTables();
+        }
+
+        [TestMethod]
+        public void EvaluateSelectWithTuplesHasDependency()
+        {
+            DropSocialDataTables();
+            _analyticEngine.submitNonQuerySQL("INSERT INTO socialData(att1,att3,att4,att2) VALUES (351,PROBABLY [785 SMITH] 50% / [185 James] 50%, Single)");
+            _analyticEngine.submitNonQuerySQL("INSERT INTO socialData(att1,att2,att3,att4) VALUES (351,Married,PROBABLY [786 Jane] 100% )"); 
+            DataTable table2;
+
+            _analyticEngine.submitQuerySQL("SELECT att3,att4 FROM socialData WHERE (att3 > 200)", out table2);
+
+            Assert.IsNotNull(table2);
             Assert.AreEqual(table2.Rows.Count, 2);
 
-            Assert.IsTrue(dataRowEqual(table2.Rows[0], "185", 25));
-            Assert.IsTrue(dataRowEqual(table2.Rows[1], "785", 25));
+            Assert.IsTrue(dataRowEqual2(table2.Rows[0], "786","Jane", "100"));
+            Assert.IsTrue(dataRowEqual2(table2.Rows[1], "785","SMITH", "50"));
 
             DropSocialDataTables();
         }
@@ -182,7 +286,7 @@ namespace PDtests
         }
 
         [TestMethod]
-        public void EvaluateSimpleSelectWhereClause2()
+        public void EvaluateSelectTuplesSameValue()
         {
             DropSocialDataTables();
             _analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH)");
@@ -243,6 +347,7 @@ namespace PDtests
             _underlineDatabase.DropTableIfExist("socialInfo_3");
             _underlineDatabase.DropTableIfExist("socialInfo_PossibleStates");
             _underlineDatabase.DropTableIfExist("socialInfo_PossibleWorlds");
+            _underlineDatabase.DropTableIfExist("socialInfo_PossibleWorldsAggregated");
         }
 
         public void GetAllGoogleStockPrice(){
@@ -311,9 +416,14 @@ namespace PDtests
             _underlineDatabase.DropTableIfExist("socialData_0");
             _underlineDatabase.DropTableIfExist("socialData_1");
             _underlineDatabase.DropTableIfExist("socialData_2");
+            _underlineDatabase.DropTableIfExist("socialData_23");
             _underlineDatabase.DropTableIfExist("socialData_3");
+            _underlineDatabase.DropTableIfExist("socialData_34");
+            _underlineDatabase.DropTableIfExist("socialData_4");
+            _underlineDatabase.DropTableIfExist("socialData_32");
             _underlineDatabase.DropTableIfExist("socialData_PossibleStates");
             _underlineDatabase.DropTableIfExist("socialData_PossibleWorlds");
+            _underlineDatabase.DropTableIfExist("socialData_PossibleWorldsAggregated");
         }
     }
 }

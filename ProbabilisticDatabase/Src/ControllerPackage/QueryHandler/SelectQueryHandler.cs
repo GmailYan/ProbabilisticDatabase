@@ -1,4 +1,5 @@
-﻿using ProbabilisticDatabase.Src.ControllerPackage.Query;
+﻿using System.Text.RegularExpressions;
+using ProbabilisticDatabase.Src.ControllerPackage.Query;
 using ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery;
 using System;
 using System.Collections.Generic;
@@ -14,9 +15,9 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
         private SqlSelectQuery _query;
         private IStandardDatabase underlineDatabase;
 
-        public SelectQueryHandler(Query.SelectQuery.SqlSelectQuery squery, IStandardDatabase underlineDatabase)
+        public SelectQueryHandler(SqlSelectQuery squery, IStandardDatabase underlineDatabase)
         {
-            this._query = squery;
+            _query = squery;
             this.underlineDatabase = underlineDatabase;
         }
 
@@ -37,7 +38,12 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
         {
             if (_query.HasSubquery)
             {
-                var table1 = _query.TableName; 
+                var table1 = _query.TableName;
+                int attributeSize = PreparePossibleStatesTable(table1);
+                CreatePossibleWorldsTable(table1, attributeSize);
+                PreparePossibleWorldsTable(table1);
+                PreparePossibleWorldsAggregatedTable(table1);
+
                 var subQueryHandler = new SelectQueryHandler(_query.SubQuery, underlineDatabase);
                 var table2 = subQueryHandler.HandleSelectSqlQuery(true);
                 underlineDatabase.CreateNewTableWithDataTable("subquery_PossibleWorlds", table2);
@@ -95,6 +101,9 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
             switch (evaluationStrategy)
             {
                 case EvaluationStrategy.Default:
+                    int attributeSize = PreparePossibleStatesTable(query.TableName);
+                    CreatePossibleWorldsTable(query.TableName, attributeSize);
+                    PreparePossibleWorldsTable(query.TableName);
                     PreparePossibleWorldsAggregatedTable(query.TableName);
                     return NaiveStrategy(attributes,query.ConditionClause,query.TableName,intermediate);
 
@@ -110,6 +119,257 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
                     return ExecuteMonteCarloSampling(samplingResultTable, answerTableName, samplingRuns, query); ;
             }
             return result;
+        }
+
+        /// <summary>
+        /// To generate possible worlds, for each tuple's possible state, cross join with other tuples' possible states 
+        /// </summary>
+        /// <param name="tableName"></param>
+        private void PreparePossibleWorldsTable(string tableName)
+        {
+            if (!underlineDatabase.CheckIsTableAlreadyExist(tableName + "_PossibleStates"))
+            {
+                return;
+            }
+
+            var getVariables = string.Format("SELECT var FROM {0}_0", tableName);
+            var getVariblesResult = underlineDatabase.ExecuteSqlWithResult(getVariables);
+            foreach (DataRow row in getVariblesResult.Rows)
+            {
+                var variable = row.Field<int>("var");
+                GeneratePossibleWorlds(tableName, variable);
+            }
+
+        }
+
+        private void GeneratePossibleWorlds(string tableName, int randomVariable)
+        {
+            var statesTable = underlineDatabase.ExecuteSqlWithResult("select * from " + tableName + "_PossibleStates");
+
+            IEnumerable<DataRow> newlyAddedPossibleStates = from newRow in statesTable.AsEnumerable()
+                                                            where newRow.Field<int>("var") == randomVariable
+                                                            select newRow;
+
+            var newVarStates = newlyAddedPossibleStates.Count();
+
+            var possibleWorldsTable = tableName + "_PossibleWorlds";
+            bool tableExists = underlineDatabase.CheckIsTableAlreadyExist(possibleWorldsTable);
+            if (!tableExists)
+            {
+                throw new Exception(possibleWorldsTable+"table not created yet");
+            }
+            var existingWorldsTable = underlineDatabase.ExecuteSqlWithResult("select * from " + possibleWorldsTable);
+            var result = existingWorldsTable.Copy();
+
+            // replicate existingWorldTable, number of copy depends on number of state in new variable.
+            var worldNumbers = (from dataRow in existingWorldsTable.AsEnumerable()
+                                select dataRow.Field<int>("worldNo")).Distinct().ToList();
+
+            // if old worlds is empty, for each new state create a world
+            if (!worldNumbers.Any())
+            {
+                int index = 0;
+                foreach (var eachPossibleState in newlyAddedPossibleStates)
+                {
+                    index++;
+                    insertVariableState(index, eachPossibleState, ref result);
+                }
+            }
+            else
+            {
+                for (int i = 1; i <= newVarStates; i++)
+                {
+                    var eachNewState = newlyAddedPossibleStates.ElementAt(i - 1);
+                    // for each new variable state, duplicate existing worlds
+                    var duplicatedWorldNumbers = generateNewRandomVariables(worldNumbers, i, existingWorldsTable, ref result);
+
+                    // current new state i is assign to each world
+                    foreach (var worldNumber in duplicatedWorldNumbers)
+                    {
+                        insertVariableState(worldNumber, eachNewState, ref result);
+                    }
+
+                }
+
+            }
+
+            underlineDatabase.WriteTableBacktoDatabase(tableName + "_PossibleWorlds", result);
+        }
+
+        private void CreatePossibleWorldsTable(string tableName, int attributeSize)
+        {
+            String[] attributeNames = { "worldNo" };
+            String[] attributeTypes = { "INT" };
+            string attributeTableName = tableName + "_PossibleWorlds";
+
+            List<String> attributeNamesList = attributeNames.ToList();
+            List<String> attributeTypesList = attributeTypes.ToList();
+
+            for (int i = 1; i <= attributeSize; i++)
+            {
+                string ai = "att" + i;
+                attributeNamesList.Add(ai);
+                attributeTypesList.Add("NVARCHAR(MAX)");
+            }
+
+            // p is the last attribute
+            attributeNamesList.Add("p");
+            attributeTypesList.Add("float");
+
+            underlineDatabase.CreateNewTable(attributeTableName, attributeNamesList.ToArray(), attributeTypesList.ToArray());
+        }
+
+        private void insertVariableState(int worldNo, DataRow dataRow, ref DataTable result, int offset = 2)
+        {
+            var newRow = result.NewRow();
+            try
+            {
+                newRow.SetField("worldNo", worldNo);
+                var numberOfColumn = dataRow.ItemArray.Count();
+                for (int i = 1; i <= numberOfColumn - offset; i++)
+                {
+                    newRow.SetField("att" + i, dataRow.Field<string>("att" + i));
+                }
+
+                newRow.SetField("p", dataRow.Field<Double>("p"));
+            }
+            catch (Exception e)
+            {
+                Console.Out.WriteLine(e.Message);
+            }
+
+            result.Rows.Add(newRow);
+        }
+
+        private List<int> generateNewRandomVariables(List<int> worldNumbers, int ithDuplication, DataTable existingWorldsTable, ref DataTable resultTable)
+        {
+            if (ithDuplication == 1)
+            {
+                return worldNumbers;
+            }
+
+            var max = worldNumbers.Max();
+            //what if max is 0;
+
+            var result = new List<int>();
+            foreach (var n in worldNumbers)
+            {
+                // for example, for input ([1,2,3],3) the output is [7,8,9]
+                int newWorldNo = n + max * (ithDuplication - 1);
+                result.Add(newWorldNo);
+
+                var toBeReplicated = from i in existingWorldsTable.AsEnumerable()
+                                     where i.Field<int>("worldNo") == n
+                                     select i;
+
+                foreach (var oneWorld in toBeReplicated)
+                {
+                    InsertVariableWorld(newWorldNo, oneWorld, ref resultTable);
+                }
+
+            }
+
+            return result;
+        }
+
+        private void InsertVariableWorld(int newWorldNo, DataRow oneWorld, ref DataTable resultTable)
+        {
+            insertVariableState(newWorldNo, oneWorld, ref resultTable, 2);
+        }
+
+        /// <summary>
+        /// construct and execute sql to populate possible states table using those attribute table. 
+        /// </summary>
+        /// <param name="tableName"></param>
+        private int PreparePossibleStatesTable(string tableName)
+        {
+            if (!underlineDatabase.CheckIsTableAlreadyExist(tableName+"_0"))
+            {
+                throw new Exception(tableName+"_0 table doesn't exist" );
+            }
+            List<int> attributeSize = new List<int>();
+            var getVariables = string.Format("SELECT var,att0,p FROM {0}_0",tableName);
+            var getVariblesResult = underlineDatabase.ExecuteSqlWithResult(getVariables);
+            foreach (DataRow row in getVariblesResult.Rows)
+            {
+                var variable = row.Field<int>("var");
+                var tableNameString = row.Field<string>("att0");
+                List<String> tableNames = new List<string>(tableNameString.Split(','));
+                var p = row.Field<double>("p");
+                var colSize = GeneratePossibleStates(tableName, variable, tableNames, p);
+                attributeSize.Add(colSize);
+            }
+
+            if((int)attributeSize.Average() == attributeSize[0])
+            {
+                return attributeSize[0];
+            }
+            else
+            {
+                throw new Exception("inconsistency in attribute sizes of different tuples");
+            }
+        }
+
+        /// <summary>
+        /// return number of attributes implied by tableNames
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="variable"></param>
+        /// <param name="tableNames"></param>
+        /// <param name="p"></param>
+        /// <returns></returns>
+        private int GeneratePossibleStates(string tableName, int variable, List<string> tableNames, double p)
+        {
+            string selectClause = "t0.var,";
+            string probabilityClause = "100*(t0.p/100)";
+            string joinClause = "socialData_0 t0";
+            List<string> emptyString = new List<string>();
+            var colIndex = 1;
+            for (int i = 0; i < tableNames.Count; i++)
+            {
+                var tName = tableNames[i];
+                var aProbability = string.Format("*({0}.p/100)", tName);
+                probabilityClause += aProbability;
+                var aJoin = string.Format(" JOIN {0} ON t0.var = {0}.var",tName);
+                joinClause += aJoin;
+                int numberOfDigits = NumberOfDigits(tName);
+                for (int j = 0; j < numberOfDigits; j++)
+                {
+                    selectClause += "att" + (colIndex)+",";
+                    emptyString.Add("null");
+                    colIndex++;
+                }
+            }
+
+            var statesTable = tableName + "_PossibleStates";
+            var tableAlreadyExist = underlineDatabase.CheckIsTableAlreadyExist(statesTable);
+            if(tableAlreadyExist)
+            {
+                var sql = string.Format("INSERT INTO {2} SELECT {0}{1} as p FROM {3} WHERE t0.var={4}",
+                    selectClause, probabilityClause, statesTable, joinClause, variable);
+                underlineDatabase.ExecuteSql(sql);
+            }
+            else
+            {
+                var sql = string.Format("SELECT {0}{1} as p INTO {2} FROM {3} WHERE t0.var={4}",
+                    selectClause, probabilityClause, statesTable, joinClause, variable);
+                underlineDatabase.ExecuteSql(sql);
+            }
+
+            if((int)Math.Round(p) < 100)
+            {
+                var sql = string.Format("INSERT INTO {0} VALUES ({2},{1},{3})",
+                    statesTable, string.Join(",",emptyString),variable,p);
+                underlineDatabase.ExecuteSql(sql);
+            }
+            return colIndex-1;
+        }
+
+        private int NumberOfDigits(string tableName)
+        {
+            const string sPattern = @"(?<digit>\d)";
+            var matches = Regex.Matches(tableName, sPattern, RegexOptions.IgnoreCase);
+            return matches.Count;
         }
 
         private void PreparePossibleWorldsAggregatedTable(string tableName)
