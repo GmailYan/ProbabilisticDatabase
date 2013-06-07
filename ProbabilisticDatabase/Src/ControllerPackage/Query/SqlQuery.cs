@@ -20,11 +20,10 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
         /// at the moment only insert, select sql is supported
         /// </summary>
         /// <returns>If error return null ?!</returns>
-        public QueryType processType()
+        public QueryType ProcessType()
         {
-            string sPattern = @"\A\s*(?<queryType>\w+)";
-            Match match = Regex.Match(this.sql, sPattern, RegexOptions.IgnoreCase);
-
+            const string sPattern = @"\A\s*(?<queryType>\w+)";
+            Match match = Regex.Match(sql, sPattern, RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 string rawType = match.Groups["queryType"].Value;
@@ -40,14 +39,9 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
                     default:
                         return QueryType.INVALID;
                 }
-
             }
-            else
-            {
-                // match fail, query invalid
-                return QueryType.INVALID;
-            }
-
+            // match fail, query invalid
+            return QueryType.INVALID;
         }
     }
 }

@@ -34,7 +34,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage
         {
 
             SqlQuery rawQuery = new SqlQuery(sql);
-            QueryType qType = rawQuery.processType();
+            QueryType qType = rawQuery.ProcessType();
             answerSet = null;
             switch (qType)
             {

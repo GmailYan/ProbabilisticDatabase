@@ -264,6 +264,10 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
             foreach (DataRow row in content.Rows)
             {
                 string value = row[0].ToString();
+                if (string.IsNullOrEmpty(value))
+                {
+                    value = "''";
+                }
                 for(int i = 1;i<colSize;i++)
                 {
                     value += ",'" + row[i] + "'";

@@ -53,7 +53,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery
         {
             // pattern here is INSERT INTO tableName VALUES (valueClause) PROBABLY pvalue
             string sPattern = @"INSERT\s+INTO\s+(?<tableName>\w+)\s*(\s*|(?<colNames>\(.*?\)))\s+VALUES\s+(?<valueClause>\(.+\))\s*(?<tupleProbabilityClause>.*)";
-            Match match = Regex.Match(this.sql, sPattern, RegexOptions.IgnoreCase);
+            Match match = Regex.Match(sql, sPattern, RegexOptions.IgnoreCase);
 
             if (match.Success)
             {
@@ -69,7 +69,6 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery
 
                 processValueClause(valueClause);
                 processTupleProbabilityClause(tupleProbabilityClause);
-
             }
             else
             {

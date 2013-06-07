@@ -350,14 +350,53 @@ namespace PDtests
             _underlineDatabase.DropTableIfExist("socialInfo_PossibleWorldsAggregated");
         }
 
+        [TestMethod]
         public void GetAllGoogleStockPrice(){
             SetupFinancialWorld();
 
             DataTable result;
-            _analyticEngine.submitQuerySQL("SELECT att0,att1 FROM CompanyStock WHERE att0 = 'Google' EVALUATE USing monte carlo", out result);
+            _analyticEngine.submitQuerySQL("SELECT att1,att2 FROM CompanyStock WHERE (att1 = 'Google')", out result);
 
             // Google has 3 possible stock price
             Assert.AreEqual(result.Rows.Count, 3);
+
+            DropFinancialWorld();
+        }
+
+        [TestMethod]
+        public void GetHighStockPriceCompany()
+        {
+            SetupFinancialWorld();
+
+            DataTable result;
+            _analyticEngine.submitQuerySQL("SELECT att1 FROM CompanyStock WHERE (att2 > 458.0)", out result);
+
+            // Google has 3 possible stock price
+            Assert.AreEqual(result.Rows.Count, 2);
+            Assert.IsTrue(dataRowEqual(result.Rows[0],"Google",100));
+            Assert.IsTrue(dataRowEqual(result.Rows[1],"Apple", 75));
+
+            DropFinancialWorld();
+        }
+
+        [TestMethod]
+        public void GetCompanyRegulator()
+        {
+            SetupFinancialWorld();
+
+            DataTable result;
+            string table3 = string.Format("SELECT att1,att2,att3 FROM Regulator");
+            string table23SQL =
+                string.Format(
+                    "SELECT t1.att1 as t2att1,t2.att3 as t3att3 FROM [CompanyInfo as t1 JOIN ({0}) as t2 on t1.att2=t2.att2 AND t1.att1=t2.att1]",table3);
+            string sql =
+                string.Format("SELECT att1,t2.t3att3 FROM [CompanyStock as t1 JOIN ({0}) as t2 ON t1.att1=t2.t2att1]", table23SQL);
+            _analyticEngine.submitQuerySQL(sql, out result);
+
+            // Google has 3 possible stock price
+            Assert.AreEqual(result.Rows.Count, 2);
+            Assert.IsTrue(dataRowEqual(result.Rows[0], "Google", 100));
+            Assert.IsTrue(dataRowEqual(result.Rows[1], "Apple", 75));
 
             DropFinancialWorld();
         }
@@ -389,8 +428,12 @@ namespace PDtests
             _analyticEngine.submitNonQuerySQL("INSERT INTO CompanyInfo VALUES (Microsoft, " +
                                      "Technology, unknown) PROBABLY 100%");
             _analyticEngine.submitNonQuerySQL("INSERT INTO CompanyInfo VALUES (Oracle, " +
-                                     " , San Francisco ) PROBABLY 50%");
+                                     "Technology , San Francisco ) PROBABLY 50%");
 
+            // regulator
+            _analyticEngine.submitNonQuerySQL("INSERT INTO Regulator VALUES (Technology,London,Parliament)");
+            _analyticEngine.submitNonQuerySQL("INSERT INTO Regulator VALUES (Internet Information Providers,London,Google)");
+            
         }
 
         private void DropFinancialWorld()
@@ -401,12 +444,22 @@ namespace PDtests
             _underlineDatabase.DropTableIfExist("CompanyInfo_3");
             _underlineDatabase.DropTableIfExist("CompanyInfo_PossibleStates");
             _underlineDatabase.DropTableIfExist("CompanyInfo_PossibleWorlds");
+            _underlineDatabase.DropTableIfExist("CompanyInfo_PossibleWorldsAggregated");
 
             _underlineDatabase.DropTableIfExist("CompanyStock_0");
             _underlineDatabase.DropTableIfExist("CompanyStock_1");
             _underlineDatabase.DropTableIfExist("CompanyStock_2");
             _underlineDatabase.DropTableIfExist("CompanyStock_PossibleStates");
             _underlineDatabase.DropTableIfExist("CompanyStock_PossibleWorlds");
+            _underlineDatabase.DropTableIfExist("CompanyStock_PossibleWorldsAggregated");
+
+            _underlineDatabase.DropTableIfExist("Regulator_0");
+            _underlineDatabase.DropTableIfExist("Regulator_1");
+            _underlineDatabase.DropTableIfExist("Regulator_2");
+            _underlineDatabase.DropTableIfExist("Regulator_3");
+            _underlineDatabase.DropTableIfExist("Regulator_PossibleStates");
+            _underlineDatabase.DropTableIfExist("Regulator_PossibleWorlds");
+            _underlineDatabase.DropTableIfExist("Regulator_PossibleWorldsAggregated");
         }
 
         private void DropSocialDataTables()

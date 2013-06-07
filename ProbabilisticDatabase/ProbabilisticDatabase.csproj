@@ -60,14 +60,16 @@
     </Compile>
     <Compile Include="Src\ControllerPackage\IStandardDatabase.cs" />
     <Compile Include="Src\ControllerPackage\QueryHandler\CreateTableHandler.cs" />
+    <Compile Include="Src\ControllerPackage\QueryHandler\InsertQueryHandler.cs" />
     <Compile Include="Src\ControllerPackage\QueryHandler\SelectQueryHandler.cs" />
+    <Compile Include="Src\ControllerPackage\Query\Attribute\DeterministicAttribute.cs" />
+    <Compile Include="Src\ControllerPackage\Query\Attribute\ProbabilisticAttribute.cs" />
+    <Compile Include="Src\ControllerPackage\Query\Attribute\ProbabilisticMultiAttribute.cs" />
+    <Compile Include="Src\ControllerPackage\Query\Attribute\ProbabilisticSingleAttribute.cs" />
     <Compile Include="Src\ControllerPackage\Query\CreateTableQuery\SqlCreateTableQuery.cs" />
     <Compile Include="Src\ControllerPackage\Query\EvaluationStrategy.cs" />
     <Compile Include="Src\ControllerPackage\Query\InsertQuery\SqlInsertQuery.cs" />
     <Compile Include="Src\ControllerPackage\Query\QueryType.cs" />
-    <Compile Include="Src\ControllerPackage\Query\AttributeValue.cs" />
-    <Compile Include="Src\ControllerPackage\Query\ProbabilisticAttribute.cs" />
-    <Compile Include="Src\ControllerPackage\Query\SelectQuery\SelectQuery.cs" />
     <Compile Include="Src\ControllerPackage\Query\SelectQuery\SqlSelectQuery.cs" />
     <Compile Include="Src\ControllerPackage\Query\SqlQuery.cs" />
     <Compile Include="Src\DatabaseEngine\StandardDatabase.cs" />

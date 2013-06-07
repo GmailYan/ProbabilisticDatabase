@@ -322,7 +322,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
         {
             string selectClause = "t0.var,";
             string probabilityClause = "100*(t0.p/100)";
-            string joinClause = "socialData_0 t0";
+            string joinClause = tableName +"_0 t0";
             List<string> emptyString = new List<string>();
             var colIndex = 1;
             for (int i = 0; i < tableNames.Count; i++)
