@@ -23,7 +23,46 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
 
         public DataTable HandleSelectSqlQuery()
         {
-            return HandleSelectSqlQuery(false);
+            DataTable result = new DataTable();
+            var evaluationStrategy = _query.Strategy;
+            switch (evaluationStrategy)
+            {
+                case EvaluationStrategy.Lazy:
+                case EvaluationStrategy.Default:
+                    List<string> tables = GetRevelentTables(_query.Sql);
+                    OrderedSetIterator iterator = new OrderedSetIterator(tables, underlineDatabase);
+                    while (iterator.hasNext())
+                    {
+                        List<int> worldNo = iterator.nextSetOfWorldNo();
+                        for (int i = 0; i < worldNo.Count; i++ )
+                        {
+                            ConvertWorldToTable(tables[i], worldNo[i]);
+                        }
+                        //TODO: need to get rid of strategy in ProSQL for execution on DB
+                        var a = underlineDatabase.ExecuteSqlWithResult(_query.Sql);
+                        WriteResultToAnswerTable(iterator.GetIndex(),a,iterator.GetJointProbability());
+                    }
+                    result = NormalisingTableByAttributes("asd","asd");
+                    return result;
+          }
+            return result;
+
+         //   return HandleSelectSqlQuery(false);
+        }
+
+        private void WriteResultToAnswerTable(object p1, DataTable a, object p2)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void ConvertWorldToTable(string p1, int p2)
+        {
+            throw new NotImplementedException();
+        }
+
+        private List<string> GetRevelentTables(string p)
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>

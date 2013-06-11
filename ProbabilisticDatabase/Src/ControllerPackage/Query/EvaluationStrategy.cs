@@ -11,6 +11,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
         Default,
         Exact,
         Approximate,
-        MonteCarlo
+        MonteCarlo,
+        Lazy
     }
 }
