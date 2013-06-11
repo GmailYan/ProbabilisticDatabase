@@ -151,18 +151,18 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
 
             var getVariables = string.Format("SELECT var FROM {0}_0", tableName);
             var getVariblesResult = underlineDatabase.ExecuteSqlWithResult(getVariables);
+            var statesTable = underlineDatabase.ExecuteSqlWithResult("select * from " + tableName + "_PossibleStates");
+
             foreach (DataRow row in getVariblesResult.Rows)
             {
                 var variable = row.Field<int>("var");
-                GeneratePossibleWorlds(tableName, variable);
+                GeneratePossibleWorlds(tableName, variable, statesTable);
             }
 
         }
 
-        private void GeneratePossibleWorlds(string tableName, int randomVariable)
+        private void GeneratePossibleWorlds(string tableName, int randomVariable, DataTable statesTable)
         {
-            var statesTable = underlineDatabase.ExecuteSqlWithResult("select * from " + tableName + "_PossibleStates");
-
             IEnumerable<DataRow> newlyAddedPossibleStates = from newRow in statesTable.AsEnumerable()
                                                             where newRow.Field<int>("var") == randomVariable
                                                             select newRow;
