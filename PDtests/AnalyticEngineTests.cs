@@ -380,23 +380,40 @@ namespace PDtests
         }
 
         [TestMethod]
+        public void GetCompanyRegulator1()
+        {
+            SetupFinancialWorld();
+
+            DataTable result;
+            var subselect = "Select att1 as t2att1,att2 as t2att2, att3 as t2att3 from Regulator";
+            _analyticEngine.submitQuerySQL("SELECT att1,att2,att3,t2att3 FROM [CompanyInfo as t1 JOIN ("+subselect+") as t2 ON att2=t2att1 AND att3=t2att2]", out result);
+
+            // Google has 3 possible stock price
+            Assert.AreEqual(result.Rows.Count, 2);
+            Assert.IsTrue(dataRowEqual2(result.Rows[0], "Google", "Internet Information Providers", "London", "Google", "16.5"));
+            Assert.IsTrue(dataRowEqual2(result.Rows[1], "Google", "Technology", "London", "Parliament", "16.5"));
+
+            DropFinancialWorld();
+        }
+
+        [TestMethod]
         public void GetCompanyRegulator()
         {
             SetupFinancialWorld();
 
             DataTable result;
-            string table3 = string.Format("SELECT att1,att2,att3 FROM Regulator");
+            string table3 = string.Format("SELECT att1 as t3att1,att2 as t3att2,att3 as t3att3 FROM Regulator");
             string table23SQL =
                 string.Format(
-                    "SELECT t1.att1 as t2att1,t2.att3 as t3att3 FROM [CompanyInfo as t1 JOIN ({0}) as t2 on t1.att2=t2.att2 AND t1.att1=t2.att1]",table3);
+                    "SELECT att1 as t2att1,t3att3 FROM [CompanyInfo as t1 JOIN ({0}) as t2 on t1.att3=t3att2 AND t1.att2=t3att1]",table3);
             string sql =
-                string.Format("SELECT att1,t2.t3att3 FROM [CompanyStock as t1 JOIN ({0}) as t2 ON t1.att1=t2.t2att1]", table23SQL);
+                string.Format("SELECT att1,t3att3 FROM [CompanyStock as t1 JOIN ({0}) as t2 ON att1=t2att1]", table23SQL);
             _analyticEngine.submitQuerySQL(sql, out result);
 
             // Google has 3 possible stock price
             Assert.AreEqual(result.Rows.Count, 2);
-            Assert.IsTrue(dataRowEqual(result.Rows[0], "Google", 100));
-            Assert.IsTrue(dataRowEqual(result.Rows[1], "Apple", 75));
+            Assert.IsTrue(dataRowEqual2(result.Rows[0], "Google", "Parliament", "16.5"));
+            Assert.IsTrue(dataRowEqual2(result.Rows[1], "Google", "Google", "16.5"));
 
             DropFinancialWorld();
         }
@@ -424,11 +441,11 @@ namespace PDtests
                                      "PROBABLY London 33%/ Shanghai 33%/ Mountain View 34%)");
             _analyticEngine.submitNonQuerySQL("INSERT INTO CompanyInfo VALUES (Apple," +
                                      "PROBABLY Technology 50% / Personal Computer 50%, " +
-                                     "PROBABLY Cupertino 50% / Hong Kong 50% / Santa Clare Valley 50%)");
+                                     "PROBABLY Cupertino 33% / Hong Kong 33% / Santa Clare Valley 34%)");
             _analyticEngine.submitNonQuerySQL("INSERT INTO CompanyInfo VALUES (Microsoft, " +
                                      "Technology, unknown) PROBABLY 100%");
             _analyticEngine.submitNonQuerySQL("INSERT INTO CompanyInfo VALUES (Oracle, " +
-                                     "Technology , San Francisco ) PROBABLY 50%");
+                                     "Technology , SanFrancisco ) PROBABLY 50%");
 
             // regulator
             _analyticEngine.submitNonQuerySQL("INSERT INTO Regulator VALUES (Technology,London,Parliament)");

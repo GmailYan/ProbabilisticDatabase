@@ -266,7 +266,7 @@ namespace ProbabilisticDatabase.Src.DatabaseEngine
                 string value = row[0].ToString();
                 if (string.IsNullOrEmpty(value))
                 {
-                    value = "''";
+                    throw new Exception("worldNo value can not be null !!");
                 }
                 for(int i = 1;i<colSize;i++)
                 {

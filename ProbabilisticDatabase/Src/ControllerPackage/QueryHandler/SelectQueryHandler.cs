@@ -72,7 +72,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
         /// PS:for simple 1 table select, do the original sql query over all possible worlds of
         /// this table in PD, and return results in the descending order of probability
         /// </summary>
-        /// <param name="query"></param>
+        /// <param name="isIntermediateResult"> </param>
         public DataTable HandleSelectSqlQuery(bool isIntermediateResult)
         {
             if (_query.HasSubquery)
@@ -85,11 +85,10 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
 
                 var subQueryHandler = new SelectQueryHandler(_query.SubQuery, underlineDatabase);
                 var table2 = subQueryHandler.HandleSelectSqlQuery(true);
-                underlineDatabase.CreateNewTableWithDataTable("subquery_PossibleWorlds", table2);
-                PreparePossibleWorldsAggregatedTable("subquery");
-                
+
+                var attributeSelected = AttbutesWithoutRenaming(_query.Attributes);
                 JoinPossibleWorlds(table1 + "_PossibleWorlds", "subquery_PossibleWorlds", "answer_PossibleWorlds",
-                    _query.JoinOnAttributes,_query.Attributes);
+                    _query.JoinOnAttributes, attributeSelected);
                 JoinPossibleWorldsAggregatedTable(table1+"_PossibleWorldsAggregated", "subquery_PossibleWorldsAggregated", "answer_PossibleWorldsAggregated");
 
                 DataTable result = NaiveStrategy(_query.Attributes, _query.ConditionClause, "answer",isIntermediateResult);
@@ -104,6 +103,24 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
             }
         }
 
+        /// <summary>
+        /// attribute could be of the form: att1 as t2att1, this function get rid of renaming
+        /// </summary>
+        /// <param name="attributesWithRenaming"></param>
+        /// <returns></returns>
+        private string AttbutesWithoutRenaming(string attributesWithRenaming)
+        {
+            var resultList = new List<string>();
+            string sPattern = @"\s*(\A|,)\s*(?<att>.+?)\s*(?=(AS|,|\z))";
+            var matches = Regex.Matches(attributesWithRenaming, sPattern, RegexOptions.IgnoreCase);
+            for (int i = 0; i < matches.Count; i++)
+            {
+                var att = matches[i].Groups["att"].Value;
+                resultList.Add(att);
+            }
+            return string.Join(",", resultList);
+        }
+
         private void JoinPossibleWorlds(string t1, string t2, string resultTable, string joinCondition, string attributeSelected)
         {
             DataTable selectResult = underlineDatabase.ExecuteSqlWithResult("SELECT count(*) FROM (SELECT DISTINCT worldNo FROM "+t2+") as tt");
@@ -111,7 +128,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
 
             var joinWorldNo = string.Format("(t1.worldNo-1)*{0} + t2.worldNo as worldNo",t2WorldSize);
             var joinProbability = string.Format("(t1.p/100)*(t2.p/100)*100 as p");
-            var joinSql = string.Format("SELECT {4},{0},{5} FROM {1} as t1 full join {2} as t2 on {3}",
+            var joinSql = string.Format("SELECT {4},{0},{5} FROM {1} as t1 inner join {2} as t2 on {3}",
                 attributeSelected, t1, t2, joinCondition, joinWorldNo, joinProbability);
 
             var joinedTable = underlineDatabase.ExecuteSqlWithResult(joinSql);
@@ -450,8 +467,16 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
                 underlineDatabase.ExecuteSql(applyWhereClause2);
             }
 
-            if(intermediate){
-                return underlineDatabase.ExecuteSqlWithResult("SELECT * FROM " + answerTableName);
+            if(intermediate)
+            {
+                var result = underlineDatabase.ExecuteSqlWithResult("SELECT * FROM " + answerTableName);
+                underlineDatabase.CreateNewTableWithDataTable("subquery_PossibleWorlds", result);
+                var possibleWorldsAggregatedTable = tableName + "_PossibleWorldsAggregated";
+                var result2 = underlineDatabase.ExecuteSqlWithResult("SELECT * FROM " + possibleWorldsAggregatedTable + 
+                    " WHERE worldNo IN (Select WorldNo from " + answerTableName+")");
+                //PreparePossibleWorldsAggregatedTable("subquery");
+                underlineDatabase.CreateNewTableWithDataTable("subquery_PossibleWorldsAggregated", result2);
+                return result;
             }
 
             var gettingAnswersSQL = string.Format("SELECT DISTINCT worldNo,{0} FROM {1}_Answer", attributes, tableName);
