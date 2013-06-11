@@ -22,6 +22,12 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         private string _JoinOnAttributes;
 
         //------------------ Getter/Setter starts -------------------
+
+        public string Sql
+        {
+            get { return sql; }
+        }
+
         public SqlSelectQuery SubQuery
         {
             get { return _subQuery; }
