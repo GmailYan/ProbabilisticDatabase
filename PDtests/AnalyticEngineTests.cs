@@ -307,8 +307,10 @@ namespace PDtests
             SetupBiggerSocialDataWorld();
 
             DataTable table;
-            _analyticEngine.submitQuerySQL("select att3,att2,t2att1,t2att2 from "+
-                "[socialData as t1 join (SELECT att1 as t2att1,att2 as t2att2 FROM socialInfo) as t2 on att2=t2att1] where (att3='SMITH')",out table);
+            var sql = "select t1.att3,t1.att2,t2.att1,t2.att2 from socialData as t1 join socialInfo as t2 on t1.att2=t2.att1 where t1.att3='SMITH'";
+            _analyticEngine.submitQuerySQL(sql,out table);
+            //var sql = "select att3,att2,t2att1,t2att2 from " +
+             //         "[socialData as t1 join (SELECT att1 as t2att1,att2 as t2att2 FROM socialInfo) as t2 on att2=t2att1] where (att3='SMITH')";
             DropBiggerSocialDataWorld();
 
             Assert.IsNotNull(table);
@@ -385,8 +387,11 @@ namespace PDtests
             SetupFinancialWorld();
 
             DataTable result;
-            var subselect = "Select att1 as t2att1,att2 as t2att2, att3 as t2att3 from Regulator";
-            _analyticEngine.submitQuerySQL("SELECT att1,att2,att3,t2att3 FROM [CompanyInfo as t1 JOIN ("+subselect+") as t2 ON att2=t2att1 AND att3=t2att2]", out result);
+           // var subselect = "Select att1 as t2att1,att2 as t2att2, att3 as t2att3 from Regulator";
+           // var sql = "SELECT att1,att2,att3,t2att3 FROM [CompanyInfo as t1 JOIN (" + subselect +
+           //           ") as t2 ON att2=t2att1 AND att3=t2att2]";
+            var sql = "select t1.att1,t2.att1,t2.att2,t2.att3 from CompanyInfo as t1 join Regulator as t2 on t1.att2=t2.att1 and t1.att3=t2.att2 where t1.att1='Google'";
+            _analyticEngine.submitQuerySQL(sql, out result);
 
             // Google has 3 possible stock price
             Assert.AreEqual(result.Rows.Count, 2);
@@ -402,19 +407,26 @@ namespace PDtests
             SetupFinancialWorld();
 
             DataTable result;
-            string table3 = string.Format("SELECT att1 as t3att1,att2 as t3att2,att3 as t3att3 FROM Regulator");
+       /*     string table3 = string.Format("SELECT att1 as t3att1,att2 as t3att2,att3 as t3att3 FROM Regulator");
             string table23SQL =
                 string.Format(
                     "SELECT att1 as t2att1,t3att3 FROM [CompanyInfo as t1 JOIN ({0}) as t2 on t1.att3=t3att2 AND t1.att2=t3att1]",table3);
             string sql =
                 string.Format("SELECT att1,t3att3 FROM [CompanyStock as t1 JOIN ({0}) as t2 ON att1=t2att1]", table23SQL);
+        
+        */
+            var sql = "select t1.att1,t3.att3 " +
+                      "from CompanyStock as t1 " +
+                      "join CompanyInfo as t2 on t1.att1=t2.att1 " +
+                      "join Regulator as t3 on t2.att2=t3.att1 and t2.att3=t3.att2 " +
+                      "where t1.att2>= 460.0";
             _analyticEngine.submitQuerySQL(sql, out result);
 
             // Google has 3 possible stock price
-            Assert.AreEqual(result.Rows.Count, 2);
-            Assert.IsTrue(dataRowEqual2(result.Rows[0], "Google", "Parliament", "16.5"));
-            Assert.IsTrue(dataRowEqual2(result.Rows[1], "Google", "Google", "16.5"));
-
+            Assert.AreEqual(result.Rows.Count, 3);
+            Assert.IsTrue(dataRowEqual2(result.Rows[0], "Google", "Google", "16.5"));
+            Assert.IsTrue(dataRowEqual2(result.Rows[1], "Google", "Parliament", "16.5"));
+            Assert.IsTrue(dataRowEqual2(result.Rows[2], "Apple", "Federal Electronics", "4.25"));
             DropFinancialWorld();
         }
 
@@ -449,6 +461,7 @@ namespace PDtests
 
             // regulator
             _analyticEngine.submitNonQuerySQL("INSERT INTO Regulator VALUES (Technology,London,Parliament)");
+            _analyticEngine.submitNonQuerySQL("INSERT INTO Regulator VALUES (Technology,Santa Clare Valley,Federal Electronics)");
             _analyticEngine.submitNonQuerySQL("INSERT INTO Regulator VALUES (Internet Information Providers,London,Google)");
             
         }

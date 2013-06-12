@@ -14,6 +14,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
     {
         private SqlSelectQuery _query;
         private IStandardDatabase underlineDatabase;
+        private const string answerTableName = "answer";
 
         public SelectQueryHandler(SqlSelectQuery squery, IStandardDatabase underlineDatabase)
         {
@@ -29,20 +30,24 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
             {
                 case EvaluationStrategy.Lazy:
                 case EvaluationStrategy.Default:
-                    List<string> tables = GetRevelentTables(_query.Sql);
+                    List<string> tables = _query.GetRevelentTables();
+                    PrepareReleventTables(tables);
+                    underlineDatabase.DropTableIfExist(answerTableName);
                     OrderedSetIterator iterator = new OrderedSetIterator(tables, underlineDatabase);
-                    while (iterator.hasNext())
+                    while (iterator.HasNext())
                     {
-                        List<int> worldNo = iterator.nextSetOfWorldNo();
+                        var worldNoTuple = iterator.NextSetOfWorldNo();
+                        var worldNo = worldNoTuple.Item1;
+                        var probability = worldNoTuple.Item2;
                         for (int i = 0; i < worldNo.Count; i++ )
                         {
                             ConvertWorldToTable(tables[i], worldNo[i]);
                         }
-                        //TODO: need to get rid of strategy in ProSQL for execution on DB
+                        //TODO: need to get rid of strategy in ProSQL for execution on DB, or utilise default strategy
                         var a = underlineDatabase.ExecuteSqlWithResult(_query.Sql);
-                        WriteResultToAnswerTable(iterator.GetIndex(),a,iterator.GetJointProbability());
+                        WriteResultToAnswerTable(iterator.GetIndex(),a,probability);
                     }
-                    result = NormalisingTableByAttributes("asd","asd");
+                    result = NormalisingTableByAttributes(answerTableName);
                     return result;
           }
             return result;
@@ -50,19 +55,74 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
          //   return HandleSelectSqlQuery(false);
         }
 
-        private void WriteResultToAnswerTable(object p1, DataTable a, object p2)
+        private void PrepareReleventTables(List<string> tables)
         {
-            throw new NotImplementedException();
+            foreach (var table in tables)
+            {
+                int attributeSize = PreparePossibleStatesTable(table);
+                CreatePossibleWorldsTable(table, attributeSize);
+                PreparePossibleWorldsTable(table);
+                PreparePossibleWorldsAggregatedTable(table);
+            }
         }
 
-        private void ConvertWorldToTable(string p1, int p2)
+        private DataTable NormalisingTableByAttributes(string targetTable)
         {
-            throw new NotImplementedException();
+            var sql = string.Format("select top 1 * from {0}", targetTable);
+            var r = underlineDatabase.ExecuteSqlWithResult(sql);
+            var cols = r.Columns;
+            List<string> attributes = new List<string>();
+            // select all attributes except 1st and last, they are worldNo and p
+            for (int i = 1; i < (cols.Count - 1); i++)
+            {
+                attributes.Add(cols[i].ColumnName);
+            }
+            return NormalisingTableByAttributes(targetTable, string.Join(",", attributes));
         }
 
-        private List<string> GetRevelentTables(string p)
+        private void WriteResultToAnswerTable(int worldNo, DataTable content, double probability)
         {
-            throw new NotImplementedException();
+            DataTable answerTable = new DataTable();
+            answerTable.Columns.Add(new DataColumn("worldNo", typeof (int)));
+            var attCols = content.Columns;
+            var colNames = new List<string>();
+            foreach (DataColumn col in attCols)
+            {
+                answerTable.Columns.Add(col.ColumnName,typeof(string));
+                colNames.Add(col.ColumnName);
+            }
+            answerTable.Columns.Add(new DataColumn("p", typeof (double)));
+
+            var distinctRows = content.DefaultView.ToTable(true, colNames.ToArray());
+            foreach (DataRow row in distinctRows.Rows)
+            {
+                var newRow = answerTable.NewRow();
+                newRow.SetField("worldNo", worldNo);
+                newRow.SetField("p", probability);
+
+                foreach (DataColumn column in content.Columns)
+                {
+                    var columnName = column.ColumnName;
+                    newRow.SetField(columnName, row.Field<string>(columnName));
+                }
+                answerTable.Rows.Add(newRow);
+            }
+            if (underlineDatabase.CheckIsTableAlreadyExist(answerTableName))
+            {
+                underlineDatabase.WriteTableBacktoDatabase(answerTableName, answerTable);
+            }
+            else
+            {
+                underlineDatabase.CreateNewTableWithDataTable(answerTableName, answerTable);
+            }
+        }
+
+        private void ConvertWorldToTable(string tableName, int worldNo)
+        {
+            underlineDatabase.DropTableIfExist(tableName);
+            // could store history enabling skip those case that table already in worldNo
+            var sql = string.Format("Select * Into {0} from {0}_PossibleWorlds Where worldNo={1}", tableName, worldNo);
+            underlineDatabase.ExecuteSql(sql);
         }
 
         /// <summary>
@@ -485,41 +545,16 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
             return underlineDatabase.ExecuteSqlWithResult(aggregateAnswerSQL);
         }
 
-        //todo: this is the wrong method
+        /// <summary>
+        /// normal relational project + independent project
+        /// </summary>
+        /// <param name="targetTable"></param>
+        /// <param name="attribute"></param>
+        /// <returns></returns>
         private DataTable NormalisingTableByAttributes(String targetTable,string attribute)
         {
-            var tempTableName = "SocialData_Temp";
-            underlineDatabase.DropTableIfExist(tempTableName);
-            DataTable worldNumbers = underlineDatabase.ExecuteSqlWithResult("SELECT DISTINCT worldNo FROM "+targetTable);
-
-            Boolean firstRow = true;
-            foreach( DataRow eachRow in worldNumbers.Rows)
-            {
-                var worldNo = eachRow.Field<int>("worldNo");
-                string sql;
-                if (firstRow)
-                {
-                    firstRow = false;
-                    sql = string.Format("SELECT {1} as worldNo,{2},Sum(p) as p INTO {0} FROM {3} WHERE worldNo = {1} GROUP BY {2}",
-                        tempTableName, worldNo, attribute, targetTable);
-
-                    underlineDatabase.ExecuteSql(sql);
-                }
-                else
-                {
-                    string subSQL = string.Format("SELECT {1} as worldNo,{2},Sum(p) as p FROM {0} WHERE worldNo = {1} GROUP BY {2}",
-                        targetTable, worldNo, attribute );
-
-                    sql = string.Format("INSERT INTO {0} {1}",
-                        tempTableName,subSQL);
-
-                    underlineDatabase.ExecuteSql(sql);
-                }
-            }
-
-            string independentProject = string.Format("SELECT {0},dbo.IndependentProject(p) as p FROM {1} GROUP BY {0}", attribute, tempTableName);
+            string independentProject = string.Format("SELECT {0},Sum(p) as p FROM {1} GROUP BY {0} ORDER BY p DESC", attribute, targetTable);
             return underlineDatabase.ExecuteSqlWithResult(independentProject);
-            
         }
 
         /// <summary>

@@ -9,7 +9,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
 {
     public class SqlSelectQuery
     {
-        private string sql;
+        private readonly string _sql;
         private string _conditionClause = "";
         private string _strategyClause = "";
         private EvaluationStrategy _strategy;
@@ -25,7 +25,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
 
         public string Sql
         {
-            get { return sql; }
+            get { return _sql; }
         }
 
         public SqlSelectQuery SubQuery
@@ -64,7 +64,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
 
         public SqlSelectQuery(string sql)
         {
-            this.sql = sql;
+            this._sql = sql;
             processAndPopulateEachField();
             parseEvaluationStrategyEnum();
         }
@@ -73,7 +73,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         {
             // pattern to match here is: select fields from tableORsubQuery where whereCondition EVALUATE USING xxx strategy
             string sPattern = @"\A\s*SELECT\s+(?<attributes>.+?)\s+FROM\s+(\[(?<tableClause>.+)\]|(?<tableName>\w+))\s*(?<conditionClause>.*)";
-            Match match = Regex.Match(this.sql, sPattern, RegexOptions.IgnoreCase);
+            Match match = Regex.Match(this._sql, sPattern, RegexOptions.IgnoreCase);
 
             if (match.Success)
             {
@@ -200,6 +200,21 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
                 result.Add(oneAttribute);
             }
 
+            return result;
+        }
+
+        public List<string> GetRevelentTables()
+        {
+            List<string> result = new List<string>();
+
+            // table only appear right after FROM clause
+            string sPattern = @"(FROM|JOIN)\s+(?<tableName>[\w\d]+)";
+            MatchCollection matchs = Regex.Matches(_sql, sPattern, RegexOptions.IgnoreCase);
+            for (int i = 0; i < matchs.Count; i++)
+            {
+                var tName = matchs[i].Groups["tableName"].Value;
+                result.Add(tName);
+            }
             return result;
         }
     }
