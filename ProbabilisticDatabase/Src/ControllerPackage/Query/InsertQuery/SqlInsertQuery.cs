@@ -49,12 +49,11 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery
             this.tupleP = 0;
         }
 
-        public void processAndPopulateEachField()
+        public void ProcessAndPopulateEachField()
         {
             // pattern here is INSERT INTO tableName VALUES (valueClause) PROBABLY pvalue
-            string sPattern = @"INSERT\s+INTO\s+(?<tableName>\w+)\s*(\s*|(?<colNames>\(.*?\)))\s+VALUES\s+(?<valueClause>\(.+\))\s*(?<tupleProbabilityClause>.*)";
+            const string sPattern = @"INSERT\s+INTO\s+(?<tableName>\w+)\s*(\s*|(?<colNames>\(.*?\)))\s+VALUES\s+(?<valueClause>\(.+\))\s*(?<tupleProbabilityClause>.*)";
             Match match = Regex.Match(sql, sPattern, RegexOptions.IgnoreCase);
-
             if (match.Success)
             {
                 _tableName = match.Groups["tableName"].Value;
@@ -63,7 +62,6 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery
                 {
                     _colNames = ProcessColumnNames(colNames);
                 }
-
                 String valueClause = match.Groups["valueClause"].Value;
                 String tupleProbabilityClause = match.Groups["tupleProbabilityClause"].Value;
 
@@ -74,7 +72,6 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.InsertQuery
             {
                 throw new Exception("query's format does not comply with INSERT INTO VALUES");
             }
-
         }
 
         private List<string> ProcessColumnNames(string colNames)

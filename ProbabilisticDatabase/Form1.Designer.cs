@@ -38,6 +38,8 @@
             this.queryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.toolStripProgressBar1 = new System.Windows.Forms.ToolStripProgressBar();
+            this.toolStripLabel1 = new System.Windows.Forms.ToolStripLabel();
+            this.toolStripLabel2 = new System.Windows.Forms.ToolStripLabel();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.panel1 = new System.Windows.Forms.Panel();
@@ -50,8 +52,7 @@
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
             this.bindingSource1 = new System.Windows.Forms.BindingSource(this.components);
-            this.toolStripLabel1 = new System.Windows.Forms.ToolStripLabel();
-            this.toolStripLabel2 = new System.Windows.Forms.ToolStripLabel();
+            this.label2 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.errorProvider1)).BeginInit();
             this.menuStrip1.SuspendLayout();
             this.toolStrip1.SuspendLayout();
@@ -133,6 +134,18 @@
             this.toolStripProgressBar1.Name = "toolStripProgressBar1";
             this.toolStripProgressBar1.Size = new System.Drawing.Size(150, 22);
             // 
+            // toolStripLabel1
+            // 
+            this.toolStripLabel1.Name = "toolStripLabel1";
+            this.toolStripLabel1.Size = new System.Drawing.Size(42, 22);
+            this.toolStripLabel1.Text = "Status:";
+            // 
+            // toolStripLabel2
+            // 
+            this.toolStripLabel2.Name = "toolStripLabel2";
+            this.toolStripLabel2.Size = new System.Drawing.Size(73, 22);
+            this.toolStripLabel2.Text = "No thing yet";
+            // 
             // tabControl1
             // 
             this.tabControl1.Controls.Add(this.tabPage1);
@@ -153,7 +166,7 @@
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
             this.tabPage1.Size = new System.Drawing.Size(595, 357);
             this.tabPage1.TabIndex = 0;
-            this.tabPage1.Text = "tabPage1";
+            this.tabPage1.Text = "View Table";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
             // panel1
@@ -195,6 +208,7 @@
             // 
             // tabPage2
             // 
+            this.tabPage2.Controls.Add(this.label2);
             this.tabPage2.Controls.Add(this.textBox2);
             this.tabPage2.Controls.Add(this.submitSQL);
             this.tabPage2.Location = new System.Drawing.Point(4, 27);
@@ -207,10 +221,10 @@
             // 
             // textBox2
             // 
-            this.textBox2.Location = new System.Drawing.Point(47, 34);
+            this.textBox2.Location = new System.Drawing.Point(47, 81);
             this.textBox2.Multiline = true;
             this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(511, 213);
+            this.textBox2.Size = new System.Drawing.Size(511, 166);
             this.textBox2.TabIndex = 1;
             // 
             // submitSQL
@@ -231,7 +245,7 @@
             this.tabPage3.Padding = new System.Windows.Forms.Padding(3);
             this.tabPage3.Size = new System.Drawing.Size(595, 357);
             this.tabPage3.TabIndex = 2;
-            this.tabPage3.Text = "View Tables";
+            this.tabPage3.Text = "View Result";
             this.tabPage3.UseVisualStyleBackColor = true;
             // 
             // dataGridView1
@@ -244,17 +258,14 @@
             this.dataGridView1.Size = new System.Drawing.Size(503, 291);
             this.dataGridView1.TabIndex = 0;
             // 
-            // toolStripLabel1
+            // label2
             // 
-            this.toolStripLabel1.Name = "toolStripLabel1";
-            this.toolStripLabel1.Size = new System.Drawing.Size(42, 22);
-            this.toolStripLabel1.Text = "Status:";
-            // 
-            // toolStripLabel2
-            // 
-            this.toolStripLabel2.Name = "toolStripLabel2";
-            this.toolStripLabel2.Size = new System.Drawing.Size(73, 22);
-            this.toolStripLabel2.Text = "No thing yet";
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(44, 36);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(264, 18);
+            this.label2.TabIndex = 3;
+            this.label2.Text = "Please type SQL into the textbox below";
             // 
             // Form1
             // 
@@ -311,6 +322,7 @@
         private System.Windows.Forms.DataGridView dataGridView1;
         private System.Windows.Forms.ToolStripLabel toolStripLabel1;
         private System.Windows.Forms.ToolStripLabel toolStripLabel2;
+        private System.Windows.Forms.Label label2;
     }
 }
 

@@ -37,7 +37,7 @@ namespace PDtests
 
             SqlInsertQuery query = new SqlInsertQuery(sentences);
 
-            query.processAndPopulateEachField();
+            query.ProcessAndPopulateEachField();
             
             Assert.IsTrue(query.TupleP == 100.0);
             Assert.IsTrue(query.TableName == "socialData");
@@ -52,7 +52,7 @@ namespace PDtests
 
             SqlInsertQuery query = new SqlInsertQuery(sentences);
 
-            query.processAndPopulateEachField();
+            query.ProcessAndPopulateEachField();
 
             Assert.IsTrue(query.TupleP == 50.0);
             Assert.IsTrue(query.TableName == "socialData");
@@ -70,7 +70,7 @@ namespace PDtests
 
             SqlInsertQuery query = new SqlInsertQuery(sentences);
 
-            query.processAndPopulateEachField();
+            query.ProcessAndPopulateEachField();
 
             Assert.IsTrue(query.TupleP == 50.0);
             Assert.IsTrue(query.TableName == "socialData");
@@ -90,7 +90,7 @@ namespace PDtests
 
             SqlInsertQuery query = new SqlInsertQuery(sentences);
 
-            query.processAndPopulateEachField();
+            query.ProcessAndPopulateEachField();
 
             Assert.IsTrue((int)query.TupleP == 100);
             Assert.IsTrue(query.TableName == "socialData");
@@ -119,7 +119,7 @@ namespace PDtests
 
             SqlInsertQuery query = new SqlInsertQuery(sentences);
 
-            query.processAndPopulateEachField();
+            query.ProcessAndPopulateEachField();
             var colNames = query.ColNames;
 
             Assert.IsNotNull(colNames);

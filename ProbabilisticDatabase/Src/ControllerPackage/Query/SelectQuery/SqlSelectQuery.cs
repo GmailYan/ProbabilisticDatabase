@@ -110,8 +110,14 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
                 case "monte carlo":
                     _strategy = EvaluationStrategy.MonteCarlo;
                     break;
-                case "":
-                    _strategy = EvaluationStrategy.Default;
+                case "naive":
+                    _strategy = EvaluationStrategy.Naive;
+                    break;
+                case "lazy":
+                    _strategy = EvaluationStrategy.Lazy;
+                    break;
+                case "extensional":
+                    _strategy = EvaluationStrategy.Extensional;
                     break;
                 default:
                     _strategy = EvaluationStrategy.Default;

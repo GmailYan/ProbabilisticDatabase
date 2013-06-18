@@ -49,16 +49,24 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
                     }
                     result = NormalisingTableByAttributes(answerTableName);
                     return result;
-          }
+                case EvaluationStrategy.Naive:
+                    result = HandleSelectSqlQuery(false);
+                    return result;
+
+                case EvaluationStrategy.Extensional:
+                    return result;
+            }
             return result;
 
          //   return HandleSelectSqlQuery(false);
         }
 
-        private void PrepareReleventTables(List<string> tables)
+        public void PrepareReleventTables(List<string> tables)
         {
             foreach (var table in tables)
             {
+                underlineDatabase.DropTableIfExist(table + "_PossibleStates");
+                underlineDatabase.DropTableIfExist(table + "_PossibleWorlds");
                 int attributeSize = PreparePossibleStatesTable(table);
                 CreatePossibleWorldsTable(table, attributeSize);
                 PreparePossibleWorldsTable(table);
@@ -158,7 +166,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
             {
                 // no more subquery/join, now just consider a single table
                 var answerTableName = "needToGetRidOfThisVariable";
-                DataTable result = ComputeJointResultUsingStrategy(_query.Attributes, answerTableName, _query.Strategy, _query,isIntermediateResult);
+                DataTable result = ComputeJointResultUsingNaiveStrategy(_query.Attributes, _query,isIntermediateResult);
                 return result;
             }
         }
@@ -205,36 +213,18 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
 
 
         /// <summary>
-        /// Default is Exact method, while monte carlo is sampling using frequency of event occur
+        /// Default is Extensional method, while monte carlo is sampling using frequency of event occur
         /// </summary>
         /// <param name="attributes"> must specify what they are, wildcard like * not supported !</param>
-        /// <param name="answerTableName"></param>
-        /// <param name="evaluationStrategy"></param>
         /// <returns></returns>
-        private DataTable ComputeJointResultUsingStrategy(string attributes, string answerTableName, EvaluationStrategy evaluationStrategy, SqlSelectQuery query, bool intermediate)
+        private DataTable ComputeJointResultUsingNaiveStrategy(string attributes, SqlSelectQuery query, bool intermediate)
         {
-            DataTable result = new DataTable();
-            switch (evaluationStrategy)
-            {
-                case EvaluationStrategy.Default:
-                    int attributeSize = PreparePossibleStatesTable(query.TableName);
-                    CreatePossibleWorldsTable(query.TableName, attributeSize);
-                    PreparePossibleWorldsTable(query.TableName);
-                    PreparePossibleWorldsAggregatedTable(query.TableName);
-                    return NaiveStrategy(attributes,query.ConditionClause,query.TableName,intermediate);
+            int attributeSize = PreparePossibleStatesTable(query.TableName);
+            CreatePossibleWorldsTable(query.TableName, attributeSize);
+            PreparePossibleWorldsTable(query.TableName);
+            PreparePossibleWorldsAggregatedTable(query.TableName);
+            return NaiveStrategy(attributes,query.ConditionClause,query.TableName,intermediate);
 
-                case EvaluationStrategy.Exact:
-                    var selectSql = string.Format("SELECT {0},Sum(p) as p FROM {1} GROUP BY {0} ORDER BY p DESC", query.Attributes, answerTableName);
-                    result = underlineDatabase.ExecuteSqlWithResult(selectSql);
-                    return result;
-                case EvaluationStrategy.MonteCarlo:
-                    //todo: monte carlo not used
-                    var samplingResultTable = query.TableName + "_MonteCarloSampling";
-                    var samplingRuns = 100;
-
-                    return ExecuteMonteCarloSampling(samplingResultTable, answerTableName, samplingRuns, query); ;
-            }
-            return result;
         }
 
         /// <summary>

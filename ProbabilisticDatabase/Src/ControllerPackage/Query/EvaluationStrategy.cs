@@ -9,8 +9,8 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
     public enum EvaluationStrategy
     {
         Default,
-        Exact,
-        Approximate,
+        Extensional,
+        Naive,
         MonteCarlo,
         Lazy
     }
