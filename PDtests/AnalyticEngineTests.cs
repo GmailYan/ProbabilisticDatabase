@@ -325,7 +325,7 @@ namespace PDtests
 
         private void SetupBiggerSocialDataWorld()
         {
-            //clean the environment before start actual test
+            //clean the environment before start actual BenchmarkTest
             DropBiggerSocialDataWorld();
 
             _analyticEngine.submitNonQuerySQL("INSERT INTO socialData VALUES (351,PROBABLY 785 50% / 185 50% ,SMITH)");
@@ -432,7 +432,7 @@ namespace PDtests
 
         private void SetupFinancialWorld()
         {
-            //clean the environment before start actual test
+            //clean the environment before start actual BenchmarkTest
             DropFinancialWorld();
 
             //stock table

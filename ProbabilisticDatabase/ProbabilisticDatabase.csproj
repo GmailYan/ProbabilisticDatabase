@@ -54,6 +54,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Src\ControllerPackage\QueryHandler\ExtensionalTreeWalker.cs" />
     <Compile Include="Src\ControllerPackage\QueryHandler\OrderedSetIterator.cs" />
     <Compile Include="Src\ControllerPackage\AnalyticEngine.cs" />
     <Compile Include="Form1.cs">

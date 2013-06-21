@@ -29,6 +29,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
             {
                 foreach (TCustomSqlStatement stmt in sqlparser.SqlStatements)
                 {
+                    printStmt(stmt);
                     AnalyzeStmt(stmt);
                 }
             }
@@ -38,6 +39,20 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query
                     "Please make sure you are setting the correct database engine, current db engine is:" + sqlparser.DbVendor +
                     Environment.NewLine + sqlparser.ErrorMessages);
             }
+        }
+
+        static void printStmt(TCustomSqlStatement pstmt)
+        {
+            Console.WriteLine(pstmt.AsText + "\n");
+
+            for (int j = 0; j < pstmt.ChildNodes.Count(); j++)
+            {
+                if (pstmt.ChildNodes[j] is TCustomSqlStatement)
+                {
+                    printStmt((TCustomSqlStatement)(pstmt.ChildNodes[j]));
+                }
+            }
+
         }
 
         private void AnalyzeStmt(TCustomSqlStatement psql)

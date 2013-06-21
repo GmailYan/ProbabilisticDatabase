@@ -20,6 +20,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         private SqlSelectQuery _subQuery;
         private bool _hasSubquery;
         private string _JoinOnAttributes;
+        private QueryTree _queryTree;
 
         //------------------ Getter/Setter starts -------------------
 
@@ -60,16 +61,110 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         {
             get { return _attributes; }
         }
+
+        public QueryTree QueryTree
+        {
+            get { return _queryTree; }
+        }
+
         //------------------ Getter/Setter ends -------------------
 
         public SqlSelectQuery(string sql)
         {
-            this._sql = sql;
-            processAndPopulateEachField();
-            parseEvaluationStrategyEnum();
+            _sql = sql;
+            ParseEvaluationStrategyEnum();
+            if(_strategy==EvaluationStrategy.Extensional)
+            {
+                QueryTree query = ProcessExtensionalQuery(_sql);
+                _queryTree = query;
+            }
+            else
+            {
+                ProcessAndPopulateEachField();    
+            }
+            
         }
 
-        private void processAndPopulateEachField()
+        private QueryTree ProcessExtensionalQuery(string sql)
+        {
+            QueryTree resultingSQL = new QueryTree();
+
+            string sPattern = @"\A\s*select\s+(?<attributes>.+?)\s+from\s+(?<fromAndWhere>.+?)\s+evaluate\s+using";
+            Match match = Regex.Match(sql, sPattern, RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                resultingSQL.attributes = match.Groups["attributes"].Value;
+
+                String fromAndWhere = match.Groups["fromAndWhere"].Value;
+                resultingSQL = ProcessFromAndWhere(fromAndWhere,resultingSQL);
+
+            }else{
+                throw new Exception("query's format does not comply with SELECT QUERY");
+            }
+            return resultingSQL;
+        }
+
+        private QueryTree ProcessFromAndWhere(string fromAndWhere, QueryTree resultingSQL)
+        {
+            string sPattern = @"where\s*(?<whereClause>.+)\z";
+            Match match = Regex.Match(fromAndWhere, sPattern, RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                // string contain both clause
+                String whereClause = match.Groups["whereClause"].Value;
+                resultingSQL = ProcessWhereClause(whereClause, resultingSQL);
+                var position = match.Index;
+                var fromClause = fromAndWhere.Remove(position);
+                resultingSQL = ProcessFromClause(fromClause, resultingSQL);
+
+            }
+            else
+            {
+                resultingSQL = ProcessFromClause(fromAndWhere, resultingSQL);
+            }
+
+            return resultingSQL;
+        }
+
+        private QueryTree ProcessWhereClause(string whereClause, QueryTree resultingSQL)
+        {
+            // where clause could be (condition | not exists subquery1)
+            string sPattern = @"\A(not exists\s+(?<subquery>.*)|(?<condition>.*))";
+            Match match = Regex.Match(whereClause, sPattern, RegexOptions.IgnoreCase);
+
+            if (match.Success)
+            {
+                var subquery = match.Groups["subquery"].Value;
+                var condition = match.Groups["condition"].Value;
+                if (!string.IsNullOrEmpty(subquery))
+                {
+                    resultingSQL.treeNodeType = QueryTree.TreeNodeType.Difference;
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(subquery));
+                }
+                else
+                {
+                    resultingSQL.treeNodeType = QueryTree.TreeNodeType.Select;
+                    resultingSQL.condition = condition;
+                }
+            }
+            else
+            {
+                throw new Exception("query's format does not comply with SELECT QUERY");
+            }
+
+            return resultingSQL;
+        }
+
+        private QueryTree ProcessFromClause(string fromClause, QueryTree resultingSQL)
+        {
+            // form clause 3 alternative (table| sudbquery join subquery | subq union subq)
+            string sPattern = @"\A(not exists\s+(?<subquery>.*)|(?<condition>.*))";
+            Match match = Regex.Match(fromClause, sPattern, RegexOptions.IgnoreCase);
+   
+            return resultingSQL;
+        }
+
+        private void ProcessAndPopulateEachField()
         {
             // pattern to match here is: select fields from tableORsubQuery where whereCondition EVALUATE USING xxx strategy
             string sPattern = @"\A\s*SELECT\s+(?<attributes>.+?)\s+FROM\s+(\[(?<tableClause>.+)\]|(?<tableName>\w+))\s*(?<conditionClause>.*)";
@@ -104,7 +199,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
             }
         }
 
-        private void parseEvaluationStrategyEnum()
+        private void ParseEvaluationStrategyEnum()
         {
             switch (_strategyClause.ToLower()){
                 case "monte carlo":
@@ -223,5 +318,24 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
             }
             return result;
         }
+    }
+
+    public class QueryTree
+    {
+        public enum TreeNodeType
+        {
+            Join,
+            Union,
+            Select,
+            Difference,
+            Project,
+            GroundTable
+        }
+
+        public string attributes;
+        public TreeNodeType treeNodeType;
+        public List<QueryTree> subquery = new List<QueryTree>();
+        public string condition;
+        public object tableName;
     }
 }

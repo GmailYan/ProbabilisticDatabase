@@ -54,9 +54,10 @@
   <ItemGroup>
     <Compile Include="AnalyticEngineTests.cs" />
     <Compile Include="DatabaseConnectionTests.cs" />
+    <Compile Include="GeneralSQLParserTest.cs" />
     <Compile Include="RegularExpressionTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="test.cs" />
+    <Compile Include="BenchmarkTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ProbabilisticDatabase\ProbabilisticDatabase.csproj">
