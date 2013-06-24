@@ -58,6 +58,7 @@
     <Compile Include="RegularExpressionTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="BenchmarkTest.cs" />
+    <Compile Include="UnitTest1.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ProbabilisticDatabase\ProbabilisticDatabase.csproj">

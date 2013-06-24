@@ -75,7 +75,12 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
             ParseEvaluationStrategyEnum();
             if(_strategy==EvaluationStrategy.Extensional)
             {
-                QueryTree query = ProcessExtensionalQuery(_sql);
+                string sPattern = @"evaluate\s+using";
+                Match match = Regex.Match(_sql, sPattern, RegexOptions.IgnoreCase);
+                var index = match.Index;
+                var newSQL = _sql.Remove(index);
+                 
+                QueryTree query = ProcessExtensionalQuery(newSQL);
                 _queryTree = query;
             }
             else
@@ -89,13 +94,20 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         {
             QueryTree resultingSQL = new QueryTree();
 
-            string sPattern = @"\A\s*select\s+(?<attributes>.+?)\s+from\s+(?<fromAndWhere>.+?)\s+evaluate\s+using";
+            string sPattern = @"\A\s*select\s+(?<attributes>.+?)\s+from\s+(?<fromAndWhere>.+)";
             Match match = Regex.Match(sql, sPattern, RegexOptions.IgnoreCase);
             if (match.Success)
             {
-                resultingSQL.attributes = match.Groups["attributes"].Value;
-
+                var csv = match.Groups["attributes"].Value;
                 String fromAndWhere = match.Groups["fromAndWhere"].Value;
+                if (csv != "*")
+                {
+                    resultingSQL.attributes = csv.Split(',').ToList();
+                    resultingSQL.treeNodeType = QueryTree.TreeNodeType.Project;
+                    var SQLwithoutAtt = string.Format("Select * from {0}", fromAndWhere);
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(SQLwithoutAtt));
+                    return resultingSQL;
+                }
                 resultingSQL = ProcessFromAndWhere(fromAndWhere,resultingSQL);
 
             }else{
@@ -113,10 +125,26 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
                 // string contain both clause
                 String whereClause = match.Groups["whereClause"].Value;
                 resultingSQL = ProcessWhereClause(whereClause, resultingSQL);
+
                 var position = match.Index;
                 var fromClause = fromAndWhere.Remove(position);
-                resultingSQL = ProcessFromClause(fromClause, resultingSQL);
 
+                if (resultingSQL.treeNodeType == QueryTree.TreeNodeType.Select)
+                {
+                    var SQLwithoutWhere = string.Format("Select * from {0}", fromClause);
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(SQLwithoutWhere));
+                    return resultingSQL;
+                }
+                if (resultingSQL.treeNodeType==QueryTree.TreeNodeType.Difference)
+                {
+                    //var SQLwithoutWhere = string.Format("Select * from {0}", fromClause);
+                    fromClause = fromClause.Trim();
+                    var fromClauseWithoutParenthsis = fromClause.TrimStart('(');
+                    fromClauseWithoutParenthsis = fromClauseWithoutParenthsis.TrimEnd(')');
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(fromClauseWithoutParenthsis));
+                    return resultingSQL;
+                }
+                resultingSQL = ProcessFromClause(fromClause, resultingSQL);
             }
             else
             {
@@ -139,7 +167,10 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
                 if (!string.IsNullOrEmpty(subquery))
                 {
                     resultingSQL.treeNodeType = QueryTree.TreeNodeType.Difference;
-                    resultingSQL.subquery.Add(ProcessExtensionalQuery(subquery));
+                    subquery = subquery.Trim();
+                    var subWithoutParenthesis1 = subquery.TrimStart('(');
+                    var subWithoutParenthesis2 = subWithoutParenthesis1.TrimEnd(')');
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(subWithoutParenthesis2));
                 }
                 else
                 {
@@ -158,9 +189,44 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
         private QueryTree ProcessFromClause(string fromClause, QueryTree resultingSQL)
         {
             // form clause 3 alternative (table| sudbquery join subquery | subq union subq)
-            string sPattern = @"\A(not exists\s+(?<subquery>.*)|(?<condition>.*))";
+            string sPattern = @"(\((?<subquery1>(?>\((?<DEPTH>)|\)(?<-DEPTH>)|[^()]+)*(?(DEPTH)(?!)))\) as R1 union \((?<subquery2>(?>\((?<DEPTH>)|\)(?<-DEPTH>)|[^()]+)*(?(DEPTH)(?!)))\) as R2" + 
+@"|\((?<subquery1>(?>\((?<DEPTH>)|\)(?<-DEPTH>)|[^()]+)*(?(DEPTH)(?!)))\) as R1 join \((?<subquery2>(?>\((?<DEPTH>)|\)(?<-DEPTH>)|[^()]+)*(?(DEPTH)(?!)))\) as R2 on (?<joinCondition>.+)"+
+@"|(?<tableName>[\w\d]+))";
             Match match = Regex.Match(fromClause, sPattern, RegexOptions.IgnoreCase);
-   
+            if (match.Success)
+            {
+                var tName = match.Groups["tableName"].Value;
+                var subquery1 = match.Groups["subquery1"].Value;
+                var subquery2 = match.Groups["subquery2"].Value;
+                var joinCondition = match.Groups["joinCondition"].Value;
+                if (!String.IsNullOrEmpty(tName))
+                {
+                    resultingSQL.treeNodeType=QueryTree.TreeNodeType.GroundTable;
+                    resultingSQL.tableName = tName;
+
+                }else if (!String.IsNullOrEmpty(joinCondition))
+                {
+                    resultingSQL.treeNodeType=QueryTree.TreeNodeType.Join;
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(subquery1));
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(subquery2));
+                    resultingSQL.condition = joinCondition;
+                }
+                else if (!String.IsNullOrEmpty(subquery1))
+                {
+                    resultingSQL.treeNodeType=QueryTree.TreeNodeType.Union;
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(subquery1));
+                    resultingSQL.subquery.Add(ProcessExtensionalQuery(subquery2));
+                }
+                else
+                {
+                    throw new Exception("could not parse from clause, some value is null");
+                }
+            }
+            else
+            {
+                throw new Exception("query's format does not comply with SELECT QUERY");
+            }
+
             return resultingSQL;
         }
 
@@ -201,6 +267,14 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
 
         private void ParseEvaluationStrategyEnum()
         {
+            string sPattern2 = @".*EVALUATE USING\s*\((?<strategyClause>.*)\)";
+            Match match2 = Regex.Match(_sql, sPattern2, RegexOptions.IgnoreCase);
+
+            if (match2.Success)
+            {
+                _strategyClause = match2.Groups["strategyClause"].Value;
+            }
+
             switch (_strategyClause.ToLower()){
                 case "monte carlo":
                     _strategy = EvaluationStrategy.MonteCarlo;
@@ -324,6 +398,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
     {
         public enum TreeNodeType
         {
+            Unknown,
             Join,
             Union,
             Select,
@@ -332,10 +407,10 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.Query.SelectQuery
             GroundTable
         }
 
-        public string attributes;
+        public List<string> attributes;
         public TreeNodeType treeNodeType;
         public List<QueryTree> subquery = new List<QueryTree>();
         public string condition;
-        public object tableName;
+        public string tableName;
     }
 }

@@ -54,7 +54,7 @@ namespace ProbabilisticDatabase.Src.ControllerPackage.QueryHandler
                     return result;
 
                 case EvaluationStrategy.Extensional:
-                    var treeWalker = new ExtensionalTreeWalker(_query.QueryTree);
+                    var treeWalker = new ExtensionalTreeWalker(_query.QueryTree,underlineDatabase);
                     var sql = treeWalker.GetSql();
                     result=underlineDatabase.ExecuteSqlWithResult(sql);
                     return result;

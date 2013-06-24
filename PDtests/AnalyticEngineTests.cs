@@ -13,8 +13,8 @@ namespace PDtests
     [TestClass]
     public class AnalyticEngineTests
     {
-        readonly AnalyticEngine _analyticEngine = new AnalyticEngine();
-        readonly StandardDatabase _underlineDatabase = new StandardDatabase();
+        public AnalyticEngine _analyticEngine = new AnalyticEngine();
+        public StandardDatabase _underlineDatabase = new StandardDatabase();
 
 
         //[TestMethod]
@@ -247,7 +247,7 @@ namespace PDtests
             DropSocialDataTables();
         }
 
-        private bool dataRowEqual(DataRow dataRow, string field1, int field2)
+        public bool dataRowEqual(DataRow dataRow, string field1, int field2)
         {
             if (dataRow[0].ToString() != field1)
             {
@@ -265,7 +265,7 @@ namespace PDtests
             return true;
         }
 
-        private bool dataRowEqual2(DataRow dataRow, params string[] values)
+        public bool dataRowEqual2(DataRow dataRow, params string[] values)
         {
             int rowSize = dataRow.Table.Columns.Count;
             if ( rowSize != values.Length)
@@ -323,7 +323,7 @@ namespace PDtests
         }
 
 
-        private void SetupBiggerSocialDataWorld()
+        public void SetupBiggerSocialDataWorld()
         {
             //clean the environment before start actual BenchmarkTest
             DropBiggerSocialDataWorld();
@@ -337,7 +337,7 @@ namespace PDtests
 
         }
 
-        private void DropBiggerSocialDataWorld()
+        public void DropBiggerSocialDataWorld()
         {
             DropSocialDataTables();
 
@@ -430,7 +430,7 @@ namespace PDtests
             DropFinancialWorld();
         }
 
-        private void SetupFinancialWorld()
+        public void SetupFinancialWorld()
         {
             //clean the environment before start actual BenchmarkTest
             DropFinancialWorld();
@@ -466,7 +466,7 @@ namespace PDtests
             
         }
 
-        private void DropFinancialWorld()
+        public void DropFinancialWorld()
         {
             _underlineDatabase.DropTableIfExist("CompanyInfo_0");
             _underlineDatabase.DropTableIfExist("CompanyInfo_1");
@@ -492,7 +492,7 @@ namespace PDtests
             _underlineDatabase.DropTableIfExist("Regulator_PossibleWorldsAggregated");
         }
 
-        private void DropSocialDataTables()
+        public void DropSocialDataTables()
         {
             _underlineDatabase.DropTableIfExist("socialData_Temp");
             _underlineDatabase.DropTableIfExist("socialData_Answer");
